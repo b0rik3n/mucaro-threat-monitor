@@ -83,3 +83,9 @@ Valid lookback values:
 ---
 
 Built for analysts who want signal fast.
+
+## Contribution Status
+
+External code contributions are currently paused while the core architecture stabilizes.
+
+You are welcome to open issues for bugs, feed/source parsing problems, and feature requests.
