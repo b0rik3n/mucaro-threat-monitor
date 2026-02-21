@@ -32,6 +32,7 @@ const parser = new Parser({
 });
 
 const ogCache = new Map<string, string | null>();
+const iocHeadingCache = new Map<string, boolean>();
 
 function extractMetaImage(html: string): string | null {
   const patterns = [
@@ -132,6 +133,30 @@ function titleFromLink(link: string): string {
   }
 }
 
+function hasIocHeadingInHtml(html: string): boolean {
+  const headingRegex = /<(h[1-6])[^>]*>\s*(?:<[^>]+>\s*)*(?:indicators?\s+of\s+compromise|iocs?)\s*(?:<[^>]+>\s*)*<\/\1>/i;
+  return headingRegex.test(html);
+}
+
+async function detectIocHeading(url: string): Promise<boolean> {
+  if (iocHeadingCache.has(url)) return iocHeadingCache.get(url) ?? false;
+
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": "SOC-News-Scout/1.0" },
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!response.ok) return false;
+    const html = await response.text();
+    const found = hasIocHeadingInHtml(html);
+    iocHeadingCache.set(url, found);
+    return found;
+  } catch {
+    return false;
+  }
+}
+
 function pickThumbnail(item: Parser.Item): string | undefined {
   const anyItem = item as Parser.Item & {
     enclosure?: { url?: string; type?: string };
@@ -200,10 +225,11 @@ export async function fetchCyberNews(lookback: LookbackOption): Promise<NewsItem
   const enriched = await Promise.all(
     deduped.map(async (item) => {
       const ogImage = item.thumbnail ? undefined : await fetchOgImage(item.link);
+      const hasIocSectionHint = await detectIocHeading(item.link);
       return {
         ...item,
         thumbnail: ogImage ?? item.thumbnail,
-        hasIocSectionHint: true,
+        hasIocSectionHint,
       };
     })
   );
