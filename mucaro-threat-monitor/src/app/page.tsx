@@ -357,7 +357,7 @@ export default function Home() {
             {filteredItems.map((item) => (
               <article
                 key={item.id}
-                className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-[0_0_0_1px_rgba(148,163,184,0.04)] transition hover:border-cyan-500/50 hover:shadow-cyan-900/30"
+                className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-[0_0_0_1px_rgba(148,163,184,0.04)] transition hover:border-cyan-500/50 hover:shadow-cyan-900/30"
               >
                 <a href={item.link} target="_blank" rel="noreferrer" className="block">
                   <div className="aspect-video w-full bg-slate-800">
@@ -383,7 +383,7 @@ export default function Home() {
                   </div>
                 </a>
 
-                <div className="space-y-3 p-4">
+                <div className="flex h-full flex-col space-y-3 p-4">
                   <div className="flex items-center justify-between text-xs text-slate-400">
                     <span className="rounded-full border border-slate-700 px-2 py-1">{item.source}</span>
                     <time>{formatPublished(item.publishedAt)}</time>
@@ -391,9 +391,9 @@ export default function Home() {
 
                   <h2 className="text-base font-semibold leading-snug text-slate-100">{item.title}</h2>
 
-                  <p className="text-sm leading-6 text-slate-300">{item.summary}</p>
+                  <p className="min-h-[96px] max-h-[96px] overflow-hidden text-sm leading-6 text-slate-300">{item.summary}</p>
 
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="mt-auto flex flex-wrap items-center gap-2">
                     <a
                       href={item.link}
                       target="_blank"

@@ -31,10 +31,9 @@ const parser = new Parser({
   },
 });
 
-const ogCache = new Map<string, string | null>();
-const iocHeadingCache = new Map<string, boolean>();
+const pageMetaCache = new Map<string, { image?: string; description?: string; hasIocHeading?: boolean }>();
 
-function extractMetaImage(html: string): string | null {
+function extractMetaImage(html: string): string | undefined {
   const patterns = [
     /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i,
     /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["'][^>]*>/i,
@@ -46,15 +45,24 @@ function extractMetaImage(html: string): string | null {
     const match = html.match(pattern);
     if (match?.[1]) return match[1];
   }
-
-  return null;
 }
 
-async function fetchOgImage(url: string): Promise<string | undefined> {
-  if (ogCache.has(url)) {
-    const cached = ogCache.get(url);
-    return cached ?? undefined;
+function extractMetaDescription(html: string): string | undefined {
+  const patterns = [
+    /<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+    /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+    /<meta[^>]+name=["']twitter:description["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match?.[1]) return cleanText(match[1]);
   }
+}
+
+async function fetchPageMeta(url: string): Promise<{ image?: string; description?: string; hasIocHeading?: boolean }> {
+  const cached = pageMetaCache.get(url);
+  if (cached) return cached;
 
   try {
     const response = await fetch(url, {
@@ -62,18 +70,19 @@ async function fetchOgImage(url: string): Promise<string | undefined> {
       signal: AbortSignal.timeout(7000),
     });
 
-    if (!response.ok) {
-      ogCache.set(url, null);
-      return undefined;
-    }
+    if (!response.ok) return {};
 
     const html = await response.text();
-    const image = extractMetaImage(html);
-    ogCache.set(url, image ?? null);
-    return image ?? undefined;
+    const meta = {
+      image: extractMetaImage(html),
+      description: extractMetaDescription(html),
+      hasIocHeading: hasIocHeadingInHtml(html),
+    };
+
+    pageMetaCache.set(url, meta);
+    return meta;
   } catch {
-    ogCache.set(url, null);
-    return undefined;
+    return {};
   }
 }
 
@@ -136,25 +145,6 @@ function titleFromLink(link: string): string {
 function hasIocHeadingInHtml(html: string): boolean {
   const headingRegex = /<(h[1-6])[^>]*>\s*(?:<[^>]+>\s*)*(?:indicators?\s+of\s+compromise|iocs?)\s*(?:<[^>]+>\s*)*<\/\1>/i;
   return headingRegex.test(html);
-}
-
-async function detectIocHeading(url: string): Promise<boolean> {
-  if (iocHeadingCache.has(url)) return iocHeadingCache.get(url) ?? false;
-
-  try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": "SOC-News-Scout/1.0" },
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (!response.ok) return false;
-    const html = await response.text();
-    const found = hasIocHeadingInHtml(html);
-    iocHeadingCache.set(url, found);
-    return found;
-  } catch {
-    return false;
-  }
 }
 
 function pickThumbnail(item: Parser.Item): string | undefined {
@@ -224,12 +214,13 @@ export async function fetchCyberNews(lookback: LookbackOption): Promise<NewsItem
 
   const enriched = await Promise.all(
     deduped.map(async (item) => {
-      const ogImage = item.thumbnail ? undefined : await fetchOgImage(item.link);
-      const hasIocSectionHint = await detectIocHeading(item.link);
+      const meta = await fetchPageMeta(item.link);
+      const summary = item.summary === "No summary available." ? (meta.description ?? item.summary) : item.summary;
       return {
         ...item,
-        thumbnail: ogImage ?? item.thumbnail,
-        hasIocSectionHint,
+        thumbnail: meta.image ?? item.thumbnail,
+        summary,
+        hasIocSectionHint: Boolean(meta.hasIocHeading),
       };
     })
   );
