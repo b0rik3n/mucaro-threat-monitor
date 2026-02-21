@@ -12,6 +12,19 @@ type NewsItem = {
   publishedAt: string;
   thumbnail?: string;
   summary: string;
+  hasIocSectionHint: boolean;
+};
+
+type IocResult = {
+  hasIocSection: boolean;
+  sectionLabel?: string;
+  iocs: {
+    ips: string[];
+    domains: string[];
+    urls: string[];
+    hashes: string[];
+    cves: string[];
+  };
 };
 
 type CategoryOption =
@@ -110,6 +123,16 @@ function itemMatchesCategory(item: NewsItem, category: CategoryOption): boolean 
   return CATEGORY_KEYWORDS[category].some((kw) => haystack.includes(kw));
 }
 
+function flattenIocs(result: IocResult): { type: string; value: string }[] {
+  return [
+    ...result.iocs.ips.map((v) => ({ type: "ip", value: v })),
+    ...result.iocs.domains.map((v) => ({ type: "domain", value: v })),
+    ...result.iocs.urls.map((v) => ({ type: "url", value: v })),
+    ...result.iocs.hashes.map((v) => ({ type: "hash", value: v })),
+    ...result.iocs.cves.map((v) => ({ type: "cve", value: v })),
+  ];
+}
+
 export default function Home() {
   const [lookback, setLookback] = useState<LookbackOption>("24h");
   const [category, setCategory] = useState<CategoryOption>("all");
@@ -118,9 +141,11 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [iocLoadingById, setIocLoadingById] = useState<Record<string, boolean>>({});
+  const [iocById, setIocById] = useState<Record<string, IocResult | undefined>>({});
 
-  const loadNews = useCallback(async () => {
-    setLoading(true);
+  const loadNews = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
 
     try {
@@ -133,7 +158,7 @@ export default function Home() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [lookback]);
 
@@ -145,7 +170,7 @@ export default function Home() {
     if (autoRefresh === "off") return;
 
     const id = setInterval(() => {
-      loadNews();
+      loadNews(true);
     }, REFRESH_MS[autoRefresh]);
 
     return () => clearInterval(id);
@@ -160,6 +185,80 @@ export default function Home() {
     () => items.filter((item) => itemMatchesCategory(item, category)),
     [items, category]
   );
+
+  async function handleExtractIocs(item: NewsItem) {
+    setIocLoadingById((prev) => ({ ...prev, [item.id]: true }));
+
+    try {
+      const res = await fetch("/api/iocs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: item.link }),
+      });
+
+      if (!res.ok) throw new Error("Failed to extract IOCs");
+      const data = (await res.json()) as IocResult;
+      setIocById((prev) => ({ ...prev, [item.id]: data }));
+    } catch {
+      setIocById((prev) => ({
+        ...prev,
+        [item.id]: {
+          hasIocSection: false,
+          iocs: { ips: [], domains: [], urls: [], hashes: [], cves: [] },
+        },
+      }));
+    } finally {
+      setIocLoadingById((prev) => ({ ...prev, [item.id]: false }));
+    }
+  }
+  function downloadFile(filename: string, content: string, contentType: string) {
+    const blob = new Blob([content], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleDownloadCsv(item: NewsItem) {
+    const result = iocById[item.id];
+    if (!result?.hasIocSection) return;
+
+    const rows = flattenIocs(result);
+    const now = new Date().toISOString();
+    const csvRows = [
+      ["type", "value", "article_url", "source", "extracted_at"],
+      ...rows.map((r) => [r.type, r.value, item.link, item.source, now]),
+    ];
+
+    const csv = csvRows
+      .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    downloadFile(`iocs-${item.id.slice(0, 16)}.csv`, csv, "text/csv;charset=utf-8");
+  }
+
+  function handleDownloadJson(item: NewsItem) {
+    const result = iocById[item.id];
+    if (!result?.hasIocSection) return;
+
+    const payload = {
+      source: item.source,
+      articleUrl: item.link,
+      extractedAt: new Date().toISOString(),
+      sectionLabel: result.sectionLabel,
+      iocs: result.iocs,
+    };
+
+    downloadFile(
+      `iocs-${item.id.slice(0, 16)}.json`,
+      JSON.stringify(payload, null, 2),
+      "application/json"
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -237,7 +336,7 @@ export default function Home() {
             </div>
 
             <button
-              onClick={loadNews}
+              onClick={() => loadNews()}
               className="rounded-lg border border-cyan-700 bg-cyan-900/30 px-3 py-2 text-sm font-medium text-cyan-200 transition hover:bg-cyan-800/40"
             >
               Refresh now
@@ -294,14 +393,58 @@ export default function Home() {
 
                   <p className="text-sm leading-6 text-slate-300">{item.summary}</p>
 
-                  <a
-                    href={item.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center rounded-lg bg-cyan-500 px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-400"
-                  >
-                    Open Source
-                  </a>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={item.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center rounded-lg bg-cyan-500 px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-400"
+                    >
+                      Open Source
+                    </a>
+                    {item.hasIocSectionHint ? (
+                      <button
+                        onClick={() => handleExtractIocs(item)}
+                        className="inline-flex items-center rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-cyan-600 hover:text-cyan-200"
+                      >
+                        {iocLoadingById[item.id] ? "Extracting..." : "Extract IOCs"}
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {iocById[item.id] ? (
+                    <div className="rounded-lg border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-300">
+                      {iocById[item.id]?.hasIocSection ? (
+                        <>
+                          <p className="mb-2 text-slate-400">
+                            IOC section found ({iocById[item.id]?.sectionLabel ?? "ioc"}).
+                          </p>
+                          <p>IPs: {iocById[item.id]?.iocs.ips.length ?? 0}</p>
+                          <p>Domains: {iocById[item.id]?.iocs.domains.length ?? 0}</p>
+                          <p>URLs: {iocById[item.id]?.iocs.urls.length ?? 0}</p>
+                          <p>Hashes: {iocById[item.id]?.iocs.hashes.length ?? 0}</p>
+                          <p>CVEs: {iocById[item.id]?.iocs.cves.length ?? 0}</p>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              onClick={() => handleDownloadCsv(item)}
+                              className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:border-cyan-500 hover:text-cyan-200"
+                            >
+                              Download CSV
+                            </button>
+                            <button
+                              onClick={() => handleDownloadJson(item)}
+                              className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:border-cyan-500 hover:text-cyan-200"
+                            >
+                              Download JSON
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <p>No explicit IOC section detected in this article.</p>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
               </article>
             ))}

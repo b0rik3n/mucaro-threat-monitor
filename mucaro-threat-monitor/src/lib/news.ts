@@ -10,6 +10,7 @@ export type NewsItem = {
   publishedAt: string;
   thumbnail?: string;
   summary: string;
+  hasIocSectionHint: boolean;
 };
 
 const FEEDS = [
@@ -20,6 +21,7 @@ const FEEDS = [
   { name: "Dark Reading", url: "https://www.darkreading.com/rss.xml" },
   { name: "The DFIR Report", url: "https://thedfirreport.com/feed/" },
   { name: "Unit 42", url: "https://unit42.paloaltonetworks.com/feed/" },
+  { name: "Koi Security", url: "https://www.koi.ai/blog/rss.xml" },
 ];
 
 const parser = new Parser({
@@ -30,6 +32,7 @@ const parser = new Parser({
 });
 
 const ogCache = new Map<string, string | null>();
+const iocHintCache = new Map<string, boolean>();
 
 function extractMetaImage(html: string): string | null {
   const patterns = [
@@ -105,17 +108,56 @@ function summarize(input?: string): string {
   return trimmed;
 }
 
+function hasIocHeadingInHtml(html: string): boolean {
+  const headingRegex = /<(h[1-6])[^>]*>\s*(?:<[^>]+>\s*)*(?:indicators?\s+of\s+compromise|iocs?)\s*(?:<[^>]+>\s*)*<\/\1>/i;
+  return headingRegex.test(html);
+}
+
+async function detectIocSectionFromArticle(url: string): Promise<boolean> {
+  if (iocHintCache.has(url)) return iocHintCache.get(url) ?? false;
+
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": "SOC-News-Scout/1.0" },
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const html = await response.text();
+    const found = hasIocHeadingInHtml(html);
+    if (found) iocHintCache.set(url, true);
+    return found;
+  } catch {
+    return false;
+  }
+}
+
 function isNewsLikeItem(item: Parser.Item): boolean {
   const title = (item.title ?? "").toLowerCase();
   const link = (item.link ?? "").toLowerCase();
 
   const blockedLinkPatterns = ["/events/", "/webinar", "/summit", "/conference", "/register"];
-  const blockedTitlePatterns = ["webinar", "summit", "conference", "event", "register now", "live at"];
+  const blockedTitlePatterns = ["webinar", "summit", "conference", "register now", "live at"];
 
   const blockedByLink = blockedLinkPatterns.some((p) => link.includes(p));
   const blockedByTitle = blockedTitlePatterns.some((p) => title.includes(p));
 
   return !(blockedByLink || blockedByTitle);
+}
+
+function titleFromLink(link: string): string {
+  try {
+    const { pathname } = new URL(link);
+    const slug = pathname.split("/").filter(Boolean).pop() ?? "untitled";
+    return slug
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  } catch {
+    return "Untitled";
+  }
 }
 
 function pickThumbnail(item: Parser.Item): string | undefined {
@@ -146,18 +188,26 @@ export async function fetchCyberNews(lookback: LookbackOption): Promise<NewsItem
           const publishedRaw = item.isoDate || item.pubDate;
           const publishedAt = publishedRaw ? new Date(publishedRaw) : null;
 
-          if (!item.link || !item.title || !publishedAt) return null;
+          if (!item.link || !publishedAt) return null;
           if (publishedAt.getTime() < cutoff) return null;
-          if (!isNewsLikeItem(item)) return null;
+
+          const normalizedTitle = (item.title ?? "").trim() || titleFromLink(item.link);
+          const normalizedItem = {
+            ...item,
+            title: normalizedTitle,
+          } as Parser.Item;
+
+          if (!isNewsLikeItem(normalizedItem)) return null;
 
           return {
             id: `${feed.name}-${item.link}`,
-            title: item.title,
+            title: normalizedTitle,
             link: item.link,
             source: feed.name,
             publishedAt: publishedAt.toISOString(),
             thumbnail: pickThumbnail(item),
             summary: summarize(item.contentSnippet || item.content),
+            hasIocSectionHint: false,
           };
         })
         .filter((entry): entry is NewsItem => entry !== null);
@@ -177,14 +227,13 @@ export async function fetchCyberNews(lookback: LookbackOption): Promise<NewsItem
 
   const enriched = await Promise.all(
     deduped.map(async (item) => {
-      if (item.thumbnail) return item;
-
-      const ogImage = await fetchOgImage(item.link);
-      if (!ogImage) return item;
+      const ogImage = item.thumbnail ? undefined : await fetchOgImage(item.link);
+      const verifiedIocHint = await detectIocSectionFromArticle(item.link);
 
       return {
         ...item,
-        thumbnail: ogImage,
+        thumbnail: ogImage ?? item.thumbnail,
+        hasIocSectionHint: verifiedIocHint,
       };
     })
   );
