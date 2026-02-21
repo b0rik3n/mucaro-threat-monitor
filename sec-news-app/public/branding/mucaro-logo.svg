@@ -1,0 +1,30 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="64" x2="448" y2="448" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#083344"/>
+    </linearGradient>
+    <linearGradient id="owl" x1="140" y1="120" x2="372" y2="392" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#67E8F9"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="32" y="32" width="448" height="448" rx="104" fill="url(#bg)"/>
+
+  <path d="M138 210L186 130L238 210H138Z" fill="url(#owl)"/>
+  <path d="M274 210L326 130L374 210H274Z" fill="url(#owl)"/>
+
+  <path d="M120 240C120 170 174 134 256 134C338 134 392 170 392 240V286C392 355 334 402 256 402C178 402 120 355 120 286V240Z" fill="url(#owl)"/>
+
+  <circle cx="206" cy="258" r="42" fill="#0B1220"/>
+  <circle cx="306" cy="258" r="42" fill="#0B1220"/>
+  <circle cx="206" cy="258" r="14" fill="#E2E8F0"/>
+  <circle cx="306" cy="258" r="14" fill="#E2E8F0"/>
+
+  <path d="M256 286L286 330H226L256 286Z" fill="#F59E0B"/>
+
+  <path d="M174 346C196 366 224 378 256 378C288 378 316 366 338 346" stroke="#0B1220" stroke-width="14" stroke-linecap="round"/>
+
+  <rect x="32" y="32" width="448" height="448" rx="104" stroke="#155E75" stroke-width="8"/>
+</svg>
