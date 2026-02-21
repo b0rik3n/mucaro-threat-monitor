@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractIocsFromArticle } from "@/lib/ioc";
+import { enforceRateLimit } from "@/lib/api-guards";
 
 export async function POST(req: NextRequest) {
+  const limit = enforceRateLimit({ req, keyPrefix: "iocs", max: 20, windowMs: 60_000 });
+  if (!limit.ok) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Try again shortly." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSec) } }
+    );
+  }
+
   try {
     const body = (await req.json()) as { url?: string };
     const url = body?.url;

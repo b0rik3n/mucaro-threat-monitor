@@ -42,7 +42,7 @@ type CategoryOption =
   | "compliance"
   | "ics-ot";
 
-type RefreshOption = "off" | "30s" | "1m" | "5m";
+type RefreshOption = "off" | "10m" | "30m" | "60m";
 
 const LOOKBACKS: { label: string; value: LookbackOption }[] = [
   { label: "Last 1 hour", value: "1h" },
@@ -71,15 +71,15 @@ const CATEGORY_OPTIONS: { label: string; value: CategoryOption }[] = [
 
 const REFRESH_OPTIONS: { label: string; value: RefreshOption }[] = [
   { label: "Off", value: "off" },
-  { label: "Every 30 seconds", value: "30s" },
-  { label: "Every 1 minute", value: "1m" },
-  { label: "Every 5 minutes", value: "5m" },
+  { label: "Every 10 minutes", value: "10m" },
+  { label: "Every 30 minutes", value: "30m" },
+  { label: "Every 60 minutes", value: "60m" },
 ];
 
 const REFRESH_MS: Record<Exclude<RefreshOption, "off">, number> = {
-  "30s": 30_000,
-  "1m": 60_000,
-  "5m": 300_000,
+  "10m": 600_000,
+  "30m": 1_800_000,
+  "60m": 3_600_000,
 };
 
 const CATEGORY_KEYWORDS: Record<Exclude<CategoryOption, "all">, string[]> = {
