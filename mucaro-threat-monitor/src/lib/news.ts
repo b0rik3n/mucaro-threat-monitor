@@ -22,7 +22,6 @@ const FEEDS = [
   { name: "The DFIR Report", url: "https://thedfirreport.com/feed/" },
   { name: "Unit 42", url: "https://unit42.paloaltonetworks.com/feed/" },
   { name: "Koi Security", url: "https://www.koi.ai/blog/rss.xml" },
-  { name: "Proofpoint", url: "https://www.proofpoint.com/us/rss.xml" },
 ];
 
 const parser = new Parser({
