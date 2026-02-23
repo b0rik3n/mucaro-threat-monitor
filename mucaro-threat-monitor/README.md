@@ -8,7 +8,7 @@ Múcaro Threat Monitor pulls current cyber news from trusted sources, lets you f
 
 - Time lookback picker (`1h`, `6h`, `12h`, `24h`, `3d`, `7d`)
 - Category filter (vulns, ransomware, APT, breaches, phishing, malware, cloud, IAM, zero-days, detection engineering, compliance, ICS/OT)
-- Auto-refresh modes (off, 30s, 1m, 5m) + manual refresh
+- Auto-refresh modes (off, 10m, 30m, 60m) + manual refresh
 - News card UI with source, published timestamp, summary, and link-out
 - Thumbnail enrichment fallback via OpenGraph/Twitter metadata
 - Source-branded fallback placeholder when no preview image exists
@@ -19,10 +19,13 @@ Múcaro Threat Monitor pulls current cyber news from trusted sources, lets you f
 - The Hacker News
 - BleepingComputer
 - Krebs on Security
-- CISA Cybersecurity Advisories
+- CISA Alerts
 - Dark Reading
+- Cybersecurity Dive
+- SecurityWeek
 - The DFIR Report
 - Unit 42
+- Koi Security
 
 ## Tech Stack
 
@@ -79,6 +82,10 @@ Valid lookback values:
 - Feed content quality/format varies by publisher.
 - Some entries may have limited metadata or no images.
 - Event-like posts are filtered with pattern rules, but edge cases may still appear.
+
+## License
+
+MIT
 
 ---
 
