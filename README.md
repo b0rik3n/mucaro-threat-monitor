@@ -13,10 +13,6 @@ Múcaro Threat Monitor helps SOC teams quickly scan relevant cyber news with tim
 - Provides summary snippets for fast triage
 - Opens original source content in one click
 
-## Project layout
-
-- `mucaro-threat-monitor/` – Next.js application source code
-
 ## Quick start
 
 ```bash
@@ -45,6 +41,12 @@ External code contributions are currently paused while core architecture stabili
 - The DFIR Report
 - Unit 42
 - Koi Security
+
+## Security notes
+
+- `/api/iocs` validates URLs with protocol checks, host allowlist checks, and private/internal IP blocking.
+- Default IOC host allowlist covers built-in feed sources. Extend with `IOC_EXTRA_ALLOWED_HOSTS` (comma-separated hostnames) when needed.
+- API rate limiting is in-memory and best-effort for low traffic; use distributed/persistent rate limiting for larger production traffic.
 
 ## License
 

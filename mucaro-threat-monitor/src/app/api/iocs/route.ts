@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractIocsFromArticle } from "@/lib/ioc";
-import { enforceRateLimit } from "@/lib/api-guards";
+import { enforceRateLimit, validateIocArticleUrl } from "@/lib/api-guards";
 
 export async function POST(req: NextRequest) {
   const limit = enforceRateLimit({ req, keyPrefix: "iocs", max: 20, windowMs: 60_000 });
@@ -19,18 +19,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing url" }, { status: 400 });
     }
 
-    let parsed: URL;
-    try {
-      parsed = new URL(rawUrl);
-    } catch {
-      return NextResponse.json({ error: "Invalid url" }, { status: 400 });
+    const validated = await validateIocArticleUrl(rawUrl);
+    if (!validated.ok) {
+      return NextResponse.json({ error: validated.reason }, { status: 400 });
     }
 
-    if (!["http:", "https:"].includes(parsed.protocol)) {
-      return NextResponse.json({ error: "Only http/https URLs are allowed" }, { status: 400 });
-    }
-
-    const result = await extractIocsFromArticle(parsed.toString());
+    const result = await extractIocsFromArticle(validated.url.toString());
     return NextResponse.json(result);
   } catch (error) {
     return NextResponse.json(
