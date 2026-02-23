@@ -20,6 +20,7 @@ const FEEDS = [
   { name: "CISA Alerts", url: "https://www.cisa.gov/cybersecurity-advisories/all.xml" },
   { name: "Dark Reading", url: "https://www.darkreading.com/rss.xml" },
   { name: "Cybersecurity Dive", url: "https://www.cybersecuritydive.com/feeds/news/" },
+  { name: "SecurityWeek", url: "https://www.securityweek.com/feed/" },
   { name: "The DFIR Report", url: "https://thedfirreport.com/feed/" },
   { name: "Unit 42", url: "https://unit42.paloaltonetworks.com/feed/" },
   { name: "Koi Security", url: "https://www.koi.ai/blog/rss.xml" },
