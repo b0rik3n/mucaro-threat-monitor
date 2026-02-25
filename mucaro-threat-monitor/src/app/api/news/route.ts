@@ -29,7 +29,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const items = await fetchCyberNews(lookback);
+    const items = await Promise.race([
+      fetchCyberNews(lookback),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("News fetch timed out.")), 20_000)
+      ),
+    ]);
 
     const payload = {
       lookback,
