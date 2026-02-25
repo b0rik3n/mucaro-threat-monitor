@@ -167,9 +167,7 @@ export default function Home() {
     setError(null);
 
     try {
-      const res = await fetch(`/api/news?lookback=${lookback}`, {
-        signal: AbortSignal.timeout(15_000),
-      });
+      const res = await fetch(`/api/news?lookback=${lookback}`);
       if (!res.ok) throw new Error("Could not load feed.");
 
       const data = await res.json();
