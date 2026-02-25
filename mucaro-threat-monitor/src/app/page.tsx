@@ -133,22 +133,6 @@ function flattenIocs(result: IocResult): { type: string; value: string }[] {
   ];
 }
 
-function buildSplunkIpTermQuery(ips: string[], indexName = "<your_index>"): string {
-  const uniqueIps = [...new Set(ips.map((ip) => ip.trim()).filter(Boolean))];
-  if (uniqueIps.length === 0) return "";
-
-  const terms = uniqueIps.map((ip) => `TERM(${ip})`).join(" OR ");
-  return `index=${indexName} ${terms}`;
-}
-
-function buildKibanaIpQuery(ips: string[]): string {
-  const uniqueIps = [...new Set(ips.map((ip) => ip.trim()).filter(Boolean))];
-  if (uniqueIps.length === 0) return "";
-
-  const ipList = uniqueIps.map((ip) => `"${ip}"`).join(" or ");
-  return `source.ip: (${ipList}) or destination.ip: (${ipList}) or client.ip: (${ipList}) or server.ip: (${ipList})`;
-}
-
 export default function Home() {
   const [lookback, setLookback] = useState<LookbackOption>("24h");
   const [category, setCategory] = useState<CategoryOption>("all");
@@ -159,8 +143,6 @@ export default function Home() {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [iocLoadingById, setIocLoadingById] = useState<Record<string, boolean>>({});
   const [iocById, setIocById] = useState<Record<string, IocResult | undefined>>({});
-  const [splunkCopiedById, setSplunkCopiedById] = useState<Record<string, boolean>>({});
-  const [kibanaCopiedById, setKibanaCopiedById] = useState<Record<string, boolean>>({});
 
   const loadNews = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -276,43 +258,6 @@ export default function Home() {
       JSON.stringify(payload, null, 2),
       "application/json"
     );
-  }
-
-  async function handleCopySplunkIpQuery(item: NewsItem) {
-    const result = iocById[item.id];
-    if (!result?.hasIocSection) return;
-
-    const query = buildSplunkIpTermQuery(result.iocs.ips);
-    if (!query) return;
-
-    try {
-      await navigator.clipboard.writeText(query);
-      setSplunkCopiedById((prev) => ({ ...prev, [item.id]: true }));
-      window.setTimeout(() => {
-        setSplunkCopiedById((prev) => ({ ...prev, [item.id]: false }));
-      }, 1800);
-    } catch {
-      // Clipboard can fail on insecure contexts, fallback to file download.
-      downloadFile(`splunk-ip-query-${item.id.slice(0, 16)}.txt`, query, "text/plain;charset=utf-8");
-    }
-  }
-
-  async function handleCopyKibanaIpQuery(item: NewsItem) {
-    const result = iocById[item.id];
-    if (!result?.hasIocSection) return;
-
-    const query = buildKibanaIpQuery(result.iocs.ips);
-    if (!query) return;
-
-    try {
-      await navigator.clipboard.writeText(query);
-      setKibanaCopiedById((prev) => ({ ...prev, [item.id]: true }));
-      window.setTimeout(() => {
-        setKibanaCopiedById((prev) => ({ ...prev, [item.id]: false }));
-      }, 1800);
-    } catch {
-      downloadFile(`kibana-ip-query-${item.id.slice(0, 16)}.txt`, query, "text/plain;charset=utf-8");
-    }
   }
 
   return (
@@ -493,22 +438,6 @@ export default function Home() {
                             >
                               Download JSON
                             </button>
-                            {(iocById[item.id]?.iocs.ips.length ?? 0) > 0 ? (
-                              <>
-                                <button
-                                  onClick={() => handleCopySplunkIpQuery(item)}
-                                  className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:border-cyan-500 hover:text-cyan-200"
-                                >
-                                  {splunkCopiedById[item.id] ? "Splunk query copied" : "Copy Splunk IP query"}
-                                </button>
-                                <button
-                                  onClick={() => handleCopyKibanaIpQuery(item)}
-                                  className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:border-cyan-500 hover:text-cyan-200"
-                                >
-                                  {kibanaCopiedById[item.id] ? "Kibana query copied" : "Copy Kibana IP query"}
-                                </button>
-                              </>
-                            ) : null}
                           </div>
                         </>
                       ) : (
