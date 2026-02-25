@@ -587,7 +587,18 @@ export default function Home() {
           </section>
         )}
         <footer className="mt-10 border-t border-slate-800 pt-4 text-center text-xs text-slate-500">
-          © {new Date().getFullYear()} Múcaro. All rights reserved.
+          <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
+            <span>© {new Date().getFullYear()} Múcaro. All rights reserved.</span>
+            <span className="hidden sm:inline text-slate-700">•</span>
+            <a
+              href="https://x.com/mucaroTM"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-cyan-400 hover:text-cyan-300"
+            >
+              Follow on X
+            </a>
+          </div>
         </footer>
       </div>
     </main>
