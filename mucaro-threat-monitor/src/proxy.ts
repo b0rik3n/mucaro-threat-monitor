@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-function buildProdCsp(nonce: string): string {
+function buildProdCsp(): string {
   return [
     "default-src 'self'",
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
     "object-src 'none'",
-    `script-src 'self' 'unsafe-inline' 'nonce-${nonce}'`,
-    `style-src 'self' 'unsafe-inline' 'nonce-${nonce}'`,
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
     "img-src 'self' https: data:",
     "font-src 'self' https: data:",
     "connect-src 'self' https:",
@@ -44,7 +44,7 @@ export function proxy(request: NextRequest) {
     },
   });
 
-  const csp = isProd ? buildProdCsp(nonce) : buildDevCsp();
+  const csp = isProd ? buildProdCsp() : buildDevCsp();
   response.headers.set("Content-Security-Policy", csp);
 
   return response;
