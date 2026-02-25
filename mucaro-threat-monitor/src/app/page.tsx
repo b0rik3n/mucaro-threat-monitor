@@ -586,6 +586,9 @@ export default function Home() {
             ))}
           </section>
         )}
+        <footer className="mt-10 border-t border-slate-800 pt-4 text-center text-xs text-slate-500">
+          © {new Date().getFullYear()} Múcaro. All rights reserved.
+        </footer>
       </div>
     </main>
   );
