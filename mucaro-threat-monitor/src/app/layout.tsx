@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -19,19 +18,14 @@ export const metadata: Metadata = {
     "SOC-focused cybersecurity news monitor with category filters, lookback windows, and IOC extraction from explicit IOC sections.",
 };
 
-export const dynamic = "force-dynamic";
-
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
-
   return (
     <html lang="en">
       <body
-        nonce={nonce}
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}

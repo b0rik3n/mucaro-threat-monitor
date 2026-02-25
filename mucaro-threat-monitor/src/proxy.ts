@@ -31,7 +31,7 @@ function buildDevCsp(): string {
   ].join("; ");
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const isProd = process.env.NODE_ENV === "production";
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
 
