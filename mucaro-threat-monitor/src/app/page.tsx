@@ -178,6 +178,17 @@ function buildKibanaIpQuery(ips: string[]): string {
   return `source.ip: (${ipList}) or destination.ip: (${ipList}) or client.ip: (${ipList}) or server.ip: (${ipList})`;
 }
 
+function buildSigmaRuleFromIps(item: NewsItem, ips: string[]): string {
+  const uniqueIps = normalizeIpsForQuery(ips);
+  if (uniqueIps.length === 0) return "";
+
+  const now = new Date().toISOString().slice(0, 10);
+  const safeTitle = item.title.replace(/"/g, "'").slice(0, 100);
+  const yamlIpList = uniqueIps.map((ip) => `      - "${ip}"`).join("\n");
+
+  return `title: IOC IP Match - ${safeTitle}\nid: REPLACE-WITH-UUID\nstatus: experimental\ndescription: |\n  Auto-generated from Múcaro Threat Monitor IOC extraction.\n  Source: ${item.link}\nauthor: Mucaro Threat Monitor\ndate: ${now}\nlogsource:\n  category: network_connection\ndetection:\n  selection_source:\n    source.ip:\n${yamlIpList}\n  selection_destination:\n    destination.ip:\n${yamlIpList}\n  selection_client:\n    client.ip:\n${yamlIpList}\n  selection_server:\n    server.ip:\n${yamlIpList}\n  condition: 1 of selection_*\nfalsepositives:\n  - Legitimate known infrastructure\nlevel: medium\ntags:\n  - attack.command-and-control\n  - attack.t1071\n`;
+}
+
 export default function Home() {
   const [lookback, setLookback] = useState<LookbackOption>("24h");
   const [category, setCategory] = useState<CategoryOption>("all");
@@ -190,6 +201,7 @@ export default function Home() {
   const [iocById, setIocById] = useState<Record<string, IocResult | undefined>>({});
   const [splunkCopiedById, setSplunkCopiedById] = useState<Record<string, boolean>>({});
   const [kibanaCopiedById, setKibanaCopiedById] = useState<Record<string, boolean>>({});
+  const [sigmaCopiedById, setSigmaCopiedById] = useState<Record<string, boolean>>({});
 
   const loadNews = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -341,6 +353,24 @@ export default function Home() {
       }, 1800);
     } catch {
       downloadFile(`kibana-ip-query-${item.id.slice(0, 16)}.txt`, query, "text/plain;charset=utf-8");
+    }
+  }
+
+  async function handleCopySigmaRule(item: NewsItem) {
+    const result = iocById[item.id];
+    if (!result?.hasIocSection) return;
+
+    const rule = buildSigmaRuleFromIps(item, result.iocs.ips);
+    if (!rule) return;
+
+    try {
+      await navigator.clipboard.writeText(rule);
+      setSigmaCopiedById((prev) => ({ ...prev, [item.id]: true }));
+      window.setTimeout(() => {
+        setSigmaCopiedById((prev) => ({ ...prev, [item.id]: false }));
+      }, 1800);
+    } catch {
+      downloadFile(`sigma-rule-${item.id.slice(0, 16)}.yml`, rule, "text/yaml;charset=utf-8");
     }
   }
 
@@ -535,6 +565,12 @@ export default function Home() {
                                   className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:border-cyan-500 hover:text-cyan-200"
                                 >
                                   {kibanaCopiedById[item.id] ? "Kibana query copied" : "Copy Kibana IP query"}
+                                </button>
+                                <button
+                                  onClick={() => handleCopySigmaRule(item)}
+                                  className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:border-cyan-500 hover:text-cyan-200"
+                                >
+                                  {sigmaCopiedById[item.id] ? "Sigma rule copied" : "Copy Sigma rule"}
                                 </button>
                               </>
                             ) : null}
