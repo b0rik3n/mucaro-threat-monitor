@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchCyberNews, type LookbackOption } from "@/lib/news";
 import { enforceRateLimit } from "@/lib/api-guards";
 
-const VALID_LOOKBACKS = new Set<LookbackOption>(["1h", "6h", "12h", "24h", "3d", "7d"]);
+const VALID_LOOKBACKS = new Set<LookbackOption>(["1h", "6h", "12h", "24h", "3d", "7d", "30d"]);
 const NEWS_CACHE_TTL_MS = 3 * 60 * 1000;
 const newsCache = new Map<LookbackOption, { expiresAt: number; payload: unknown }>();
 

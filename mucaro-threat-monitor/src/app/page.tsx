@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-type LookbackOption = "1h" | "6h" | "12h" | "24h" | "3d" | "7d";
+type LookbackOption = "1h" | "6h" | "12h" | "24h" | "3d" | "7d" | "30d";
 
 type NewsItem = {
   id: string;
@@ -40,7 +40,8 @@ type CategoryOption =
   | "zero-day"
   | "detection"
   | "compliance"
-  | "ics-ot";
+  | "ics-ot"
+  | "with-iocs";
 
 type RefreshOption = "off" | "10m" | "30m" | "60m";
 
@@ -51,6 +52,7 @@ const LOOKBACKS: { label: string; value: LookbackOption }[] = [
   { label: "Last 24 hours", value: "24h" },
   { label: "Last 3 days", value: "3d" },
   { label: "Last 7 days", value: "7d" },
+  { label: "Last 30 days", value: "30d" },
 ];
 
 const CATEGORY_OPTIONS: { label: string; value: CategoryOption }[] = [
@@ -67,6 +69,7 @@ const CATEGORY_OPTIONS: { label: string; value: CategoryOption }[] = [
   { label: "Defense / Detection Engineering", value: "detection" },
   { label: "Regulatory & Compliance", value: "compliance" },
   { label: "ICS/OT Security", value: "ics-ot" },
+  { label: "Reports with IOCs", value: "with-iocs" },
 ];
 
 const REFRESH_OPTIONS: { label: string; value: RefreshOption }[] = [
@@ -82,7 +85,7 @@ const REFRESH_MS: Record<Exclude<RefreshOption, "off">, number> = {
   "60m": 3_600_000,
 };
 
-const CATEGORY_KEYWORDS: Record<Exclude<CategoryOption, "all">, string[]> = {
+const CATEGORY_KEYWORDS: Record<Exclude<CategoryOption, "all" | "with-iocs">, string[]> = {
   "vuln-cve": ["cve-", "vulnerability", "vulnerabilities", "patch", "cvss", "advisory"],
   ransomware: ["ransomware", "ransom", "locker", "decryptor"],
   apt: ["apt", "threat actor", "nation-state", "campaign", "ta"],
@@ -118,6 +121,7 @@ function getFaviconUrl(link: string): string | null {
 
 function itemMatchesCategory(item: NewsItem, category: CategoryOption): boolean {
   if (category === "all") return true;
+  if (category === "with-iocs") return item.hasIocSectionHint;
 
   const haystack = `${item.title} ${item.summary}`.toLowerCase();
   return CATEGORY_KEYWORDS[category].some((kw) => haystack.includes(kw));
@@ -133,8 +137,33 @@ function flattenIocs(result: IocResult): { type: string; value: string }[] {
   ];
 }
 
+function extractPureIp(value: string): string | null {
+  const text = value.trim();
+  if (!text) return null;
+
+  const ipv4Match = text.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
+  if (ipv4Match?.[0]) {
+    const octets = ipv4Match[0].split(".").map(Number);
+    if (octets.every((n) => Number.isInteger(n) && n >= 0 && n <= 255)) {
+      return ipv4Match[0];
+    }
+  }
+
+  const bracketedIpv6Match = text.match(/\[([A-Fa-f0-9:]+)\]/);
+  if (bracketedIpv6Match?.[1]) return bracketedIpv6Match[1];
+
+  const ipv6Match = text.match(/\b(?:[A-Fa-f0-9]{1,4}:){2,7}[A-Fa-f0-9]{1,4}\b/);
+  if (ipv6Match?.[0]) return ipv6Match[0];
+
+  return null;
+}
+
+function normalizeIpsForQuery(ips: string[]): string[] {
+  return [...new Set(ips.map(extractPureIp).filter((ip): ip is string => Boolean(ip)))];
+}
+
 function buildSplunkIpTermQuery(ips: string[], indexName = "<your_index>"): string {
-  const uniqueIps = [...new Set(ips.map((ip) => ip.trim()).filter(Boolean))];
+  const uniqueIps = normalizeIpsForQuery(ips);
   if (uniqueIps.length === 0) return "";
 
   const terms = uniqueIps.map((ip) => `TERM(${ip})`).join(" OR ");
@@ -142,7 +171,7 @@ function buildSplunkIpTermQuery(ips: string[], indexName = "<your_index>"): stri
 }
 
 function buildKibanaIpQuery(ips: string[]): string {
-  const uniqueIps = [...new Set(ips.map((ip) => ip.trim()).filter(Boolean))];
+  const uniqueIps = normalizeIpsForQuery(ips);
   if (uniqueIps.length === 0) return "";
 
   const ipList = uniqueIps.map((ip) => `"${ip}"`).join(" or ");

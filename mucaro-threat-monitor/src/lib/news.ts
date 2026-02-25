@@ -1,6 +1,6 @@
 import Parser from "rss-parser";
 
-export type LookbackOption = "1h" | "6h" | "12h" | "24h" | "3d" | "7d";
+export type LookbackOption = "1h" | "6h" | "12h" | "24h" | "3d" | "7d" | "30d";
 
 export type NewsItem = {
   id: string;
@@ -96,6 +96,7 @@ export function parseLookbackToMs(lookback: LookbackOption): number {
     "24h": 24 * 60 * 60 * 1000,
     "3d": 3 * 24 * 60 * 60 * 1000,
     "7d": 7 * 24 * 60 * 60 * 1000,
+    "30d": 30 * 24 * 60 * 60 * 1000,
   };
 
   return map[lookback] ?? map["24h"];
