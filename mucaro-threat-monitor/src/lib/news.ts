@@ -23,6 +23,7 @@ const FEEDS = [
   { name: "SecurityWeek", url: "https://www.securityweek.com/feed/" },
   { name: "The DFIR Report", url: "https://thedfirreport.com/feed/" },
   { name: "Unit 42", url: "https://unit42.paloaltonetworks.com/feed/" },
+  { name: "Google Threat Intelligence", url: "https://cloudblog.withgoogle.com/topics/threat-intelligence/rss" },
   { name: "Koi Security", url: "https://www.koi.ai/blog/rss.xml" },
 ];
 
