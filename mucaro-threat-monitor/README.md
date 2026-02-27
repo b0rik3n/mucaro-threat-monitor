@@ -25,6 +25,7 @@ Múcaro Threat Monitor pulls current cyber news from trusted sources, lets you f
 - SecurityWeek
 - The DFIR Report
 - Unit 42
+- Google Threat Intelligence
 - Koi Security
 
 ## Tech Stack

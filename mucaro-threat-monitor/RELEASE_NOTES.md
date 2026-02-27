@@ -1,5 +1,14 @@
 # Release Notes
 
+## v0.1.1 - Feed Source Update
+
+### Added
+
+- Added **Google Threat Intelligence** RSS feed to the news ingestion pipeline
+- Updated project documentation source list to include Google Threat Intelligence
+
+---
+
 ## v0.1.0 - Initial Public Build
 
 ### Added
