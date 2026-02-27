@@ -13,41 +13,6 @@ Múcaro Threat Monitor helps SOC teams quickly scan relevant cyber news with tim
 - Provides summary snippets for fast triage
 - Opens original source content in one click
 
-## Quick start
-
-```bash
-cd mucaro-threat-monitor
-npm install
-npm run dev
-```
-
-Open `http://localhost:3000`
-
-## Status
-
-Active development.
-
-External code contributions are currently paused while core architecture stabilizes. Issues and feedback are welcome.
-
-## Current feed sources
-
-- The Hacker News
-- BleepingComputer
-- Krebs on Security
-- CISA Alerts
-- Dark Reading
-- Cybersecurity Dive
-- SecurityWeek
-- The DFIR Report
-- Unit 42
-- Koi Security
-
-## Security notes
-
-- `/api/iocs` validates URLs with protocol checks, host allowlist checks, and private/internal IP blocking.
-- Default IOC host allowlist covers built-in feed sources. Extend with `IOC_EXTRA_ALLOWED_HOSTS` (comma-separated hostnames) when needed.
-- API rate limiting is in-memory and best-effort for low traffic; use distributed/persistent rate limiting for larger production traffic.
-
 ## License
 
 MIT
