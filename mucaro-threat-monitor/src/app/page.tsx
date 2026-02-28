@@ -27,6 +27,7 @@ type IocResult = {
   };
 };
 
+
 type CategoryOption =
   | "all"
   | "vuln-cve"
@@ -45,6 +46,7 @@ type CategoryOption =
 
 type RefreshOption = "off" | "10m" | "30m" | "60m";
 type ThemeOption = "dark" | "light" | "nord" | "high-contrast" | "matrix";
+type LayoutOption = "grid" | "dense";
 
 const LOOKBACKS: { label: string; value: LookbackOption }[] = [
   { label: "Last 1 hour", value: "1h" },
@@ -88,6 +90,11 @@ const THEME_OPTIONS: { label: string; value: ThemeOption }[] = [
   { label: "Matrix", value: "matrix" },
 ];
 
+const LAYOUT_OPTIONS: { label: string; value: LayoutOption }[] = [
+  { label: "Cards Grid", value: "grid" },
+  { label: "Dense Triage", value: "dense" },
+];
+
 const REFRESH_MS: Record<Exclude<RefreshOption, "off">, number> = {
   "10m": 600_000,
   "30m": 1_800_000,
@@ -119,14 +126,6 @@ function formatPublished(value: string): string {
   }).format(date);
 }
 
-function getFaviconUrl(link: string): string | null {
-  try {
-    const hostname = new URL(link).hostname;
-    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
-  } catch {
-    return null;
-  }
-}
 
 function itemMatchesCategory(item: NewsItem, category: CategoryOption): boolean {
   if (category === "all") return true;
@@ -136,84 +135,28 @@ function itemMatchesCategory(item: NewsItem, category: CategoryOption): boolean 
   return CATEGORY_KEYWORDS[category].some((kw) => haystack.includes(kw));
 }
 
-function flattenIocs(result: IocResult): { type: string; value: string }[] {
-  return [
-    ...result.iocs.ips.map((v) => ({ type: "ip", value: v })),
-    ...result.iocs.domains.map((v) => ({ type: "domain", value: v })),
-    ...result.iocs.urls.map((v) => ({ type: "url", value: v })),
-    ...result.iocs.hashes.map((v) => ({ type: "hash", value: v })),
-    ...result.iocs.cves.map((v) => ({ type: "cve", value: v })),
-  ];
-}
 
-function extractPureIp(value: string): string | null {
-  const text = value.trim();
-  if (!text) return null;
 
-  const ipv4Match = text.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
-  if (ipv4Match?.[0]) {
-    const octets = ipv4Match[0].split(".").map(Number);
-    if (octets.every((n) => Number.isInteger(n) && n >= 0 && n <= 255)) {
-      return ipv4Match[0];
-    }
-  }
 
-  const bracketedIpv6Match = text.match(/\[([A-Fa-f0-9:]+)\]/);
-  if (bracketedIpv6Match?.[1]) return bracketedIpv6Match[1];
 
-  const ipv6Match = text.match(/\b(?:[A-Fa-f0-9]{1,4}:){2,7}[A-Fa-f0-9]{1,4}\b/);
-  if (ipv6Match?.[0]) return ipv6Match[0];
 
-  return null;
-}
-
-function normalizeIpsForQuery(ips: string[]): string[] {
-  return [...new Set(ips.map(extractPureIp).filter((ip): ip is string => Boolean(ip)))];
-}
-
-function buildSplunkIpTermQuery(ips: string[], indexName = "<your_index>"): string {
-  const uniqueIps = normalizeIpsForQuery(ips);
-  if (uniqueIps.length === 0) return "";
-
-  const terms = uniqueIps.map((ip) => `TERM(${ip})`).join(" OR ");
-  return `index=${indexName} ${terms}`;
-}
-
-function buildKibanaIpQuery(ips: string[]): string {
-  const uniqueIps = normalizeIpsForQuery(ips);
-  if (uniqueIps.length === 0) return "";
-
-  const ipList = uniqueIps.map((ip) => `"${ip}"`).join(" or ");
-  return `source.ip: (${ipList}) or destination.ip: (${ipList}) or client.ip: (${ipList}) or server.ip: (${ipList})`;
-}
-
-function buildSigmaRuleFromIps(item: NewsItem, ips: string[]): string {
-  const uniqueIps = normalizeIpsForQuery(ips);
-  if (uniqueIps.length === 0) return "";
-
-  const now = new Date().toISOString().slice(0, 10);
-  const safeTitle = item.title.replace(/"/g, "'").slice(0, 100);
-  const yamlIpList = uniqueIps.map((ip) => `      - "${ip}"`).join("\n");
-
-  return `title: IOC IP Match - ${safeTitle}\nid: REPLACE-WITH-UUID\nstatus: experimental\ndescription: |\n  Auto-generated from Múcaro Threat Monitor IOC extraction.\n  Source: ${item.link}\nauthor: Mucaro Threat Monitor\ndate: ${now}\nlogsource:\n  category: network_connection\ndetection:\n  selection_source:\n    source.ip:\n${yamlIpList}\n  selection_destination:\n    destination.ip:\n${yamlIpList}\n  selection_client:\n    client.ip:\n${yamlIpList}\n  selection_server:\n    server.ip:\n${yamlIpList}\n  condition: 1 of selection_*\nfalsepositives:\n  - Legitimate known infrastructure\nlevel: medium\ntags:\n  - attack.command-and-control\n  - attack.t1071\n`;
-}
 
 export default function Home() {
   const [lookback, setLookback] = useState<LookbackOption>("24h");
   const [category, setCategory] = useState<CategoryOption>("all");
   const [autoRefresh, setAutoRefresh] = useState<RefreshOption>("off");
   const [theme, setTheme] = useState<ThemeOption>("dark");
+  const [layout, setLayout] = useState<LayoutOption>("grid");
   const [themeWidgetOpen, setThemeWidgetOpen] = useState(false);
+  const [layoutWidgetOpen, setLayoutWidgetOpen] = useState(false);
   const themeWidgetRef = useRef<HTMLDivElement | null>(null);
+  const layoutWidgetRef = useRef<HTMLDivElement | null>(null);
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [iocLoadingById, setIocLoadingById] = useState<Record<string, boolean>>({});
-  const [iocById, setIocById] = useState<Record<string, IocResult | undefined>>({});
-  const [splunkCopiedById, setSplunkCopiedById] = useState<Record<string, boolean>>({});
-  const [kibanaCopiedById, setKibanaCopiedById] = useState<Record<string, boolean>>({});
-  const [sigmaCopiedById, setSigmaCopiedById] = useState<Record<string, boolean>>({});
+  const [, setIocById] = useState<Record<string, IocResult | undefined>>({});
 
   const loadNews = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -259,14 +202,31 @@ export default function Home() {
   }, [theme]);
 
   useEffect(() => {
+    const savedLayout = localStorage.getItem("mucaro-layout") as LayoutOption | null;
+    if (savedLayout && ["grid", "dense"].includes(savedLayout)) {
+      setLayout(savedLayout);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("mucaro-layout", layout);
+  }, [layout]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setThemeWidgetOpen(false);
+      if (event.key === "Escape") {
+        setThemeWidgetOpen(false);
+        setLayoutWidgetOpen(false);
+      }
     };
 
     const onPointerDown = (event: MouseEvent) => {
-      if (!themeWidgetRef.current) return;
-      if (!themeWidgetRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (themeWidgetRef.current && !themeWidgetRef.current.contains(target)) {
         setThemeWidgetOpen(false);
+      }
+      if (layoutWidgetRef.current && !layoutWidgetRef.current.contains(target)) {
+        setLayoutWidgetOpen(false);
       }
     };
 
@@ -393,109 +353,7 @@ export default function Home() {
       setIocLoadingById((prev) => ({ ...prev, [item.id]: false }));
     }
   }
-  function downloadFile(filename: string, content: string, contentType: string) {
-    const blob = new Blob([content], { type: contentType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
 
-  function handleDownloadCsv(item: NewsItem) {
-    const result = iocById[item.id];
-    if (!result?.hasIocSection) return;
-
-    const rows = flattenIocs(result);
-    const now = new Date().toISOString();
-    const csvRows = [
-      ["type", "value", "article_url", "source", "extracted_at"],
-      ...rows.map((r) => [r.type, r.value, item.link, item.source, now]),
-    ];
-
-    const csv = csvRows
-      .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-
-    downloadFile(`iocs-${item.id.slice(0, 16)}.csv`, csv, "text/csv;charset=utf-8");
-  }
-
-  function handleDownloadJson(item: NewsItem) {
-    const result = iocById[item.id];
-    if (!result?.hasIocSection) return;
-
-    const payload = {
-      source: item.source,
-      articleUrl: item.link,
-      extractedAt: new Date().toISOString(),
-      sectionLabel: result.sectionLabel,
-      iocs: result.iocs,
-    };
-
-    downloadFile(
-      `iocs-${item.id.slice(0, 16)}.json`,
-      JSON.stringify(payload, null, 2),
-      "application/json"
-    );
-  }
-
-  async function handleCopySplunkIpQuery(item: NewsItem) {
-    const result = iocById[item.id];
-    if (!result?.hasIocSection) return;
-
-    const query = buildSplunkIpTermQuery(result.iocs.ips);
-    if (!query) return;
-
-    try {
-      await navigator.clipboard.writeText(query);
-      setSplunkCopiedById((prev) => ({ ...prev, [item.id]: true }));
-      window.setTimeout(() => {
-        setSplunkCopiedById((prev) => ({ ...prev, [item.id]: false }));
-      }, 1800);
-    } catch {
-      // Clipboard can fail on insecure contexts, fallback to file download.
-      downloadFile(`splunk-ip-query-${item.id.slice(0, 16)}.txt`, query, "text/plain;charset=utf-8");
-    }
-  }
-
-  async function handleCopyKibanaIpQuery(item: NewsItem) {
-    const result = iocById[item.id];
-    if (!result?.hasIocSection) return;
-
-    const query = buildKibanaIpQuery(result.iocs.ips);
-    if (!query) return;
-
-    try {
-      await navigator.clipboard.writeText(query);
-      setKibanaCopiedById((prev) => ({ ...prev, [item.id]: true }));
-      window.setTimeout(() => {
-        setKibanaCopiedById((prev) => ({ ...prev, [item.id]: false }));
-      }, 1800);
-    } catch {
-      downloadFile(`kibana-ip-query-${item.id.slice(0, 16)}.txt`, query, "text/plain;charset=utf-8");
-    }
-  }
-
-  async function handleCopySigmaRule(item: NewsItem) {
-    const result = iocById[item.id];
-    if (!result?.hasIocSection) return;
-
-    const rule = buildSigmaRuleFromIps(item, result.iocs.ips);
-    if (!rule) return;
-
-    try {
-      await navigator.clipboard.writeText(rule);
-      setSigmaCopiedById((prev) => ({ ...prev, [item.id]: true }));
-      window.setTimeout(() => {
-        setSigmaCopiedById((prev) => ({ ...prev, [item.id]: false }));
-      }, 1800);
-    } catch {
-      downloadFile(`sigma-rule-${item.id.slice(0, 16)}.yml`, rule, "text/yaml;charset=utf-8");
-    }
-  }
 
   return (
     <main className={`min-h-screen ${themeClasses.page}`}>
@@ -600,45 +458,42 @@ export default function Home() {
             No results found for this time window/category. Try expanding lookback or changing category.
           </p>
         ) : (
-          <section className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <section
+            className={`grid ${
+              layout === "dense"
+                ? "grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4"
+                : "grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3"
+            }`}
+          >
             {filteredItems.map((item) => (
               <article
                 key={item.id}
                 className={`flex h-full flex-col overflow-hidden rounded-2xl border shadow-[0_0_0_1px_rgba(148,163,184,0.04)] transition ${themeClasses.card} ${themeClasses.cardHover}`}
               >
                 <a href={item.link} target="_blank" rel="noreferrer" className="block">
-                  <div className="aspect-video w-full bg-slate-800">
+                  <div className={`${layout === "dense" ? "aspect-[16/8]" : "aspect-video"} w-full bg-slate-800`}>
                     {item.thumbnail ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.thumbnail} alt={item.title} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950 text-center">
-                        {getFaviconUrl(item.link) ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={getFaviconUrl(item.link) as string}
-                            alt={`${item.source} logo`}
-                            className="mb-3 h-10 w-10 rounded-md border border-slate-600 bg-slate-800 p-1"
-                          />
-                        ) : null}
-                        <span className="mb-1 rounded-full border border-slate-600 px-3 py-1 text-xs text-slate-300">
-                          {item.source}
-                        </span>
                         <span className="text-sm font-medium text-slate-200">No preview image</span>
                       </div>
                     )}
                   </div>
                 </a>
 
-                <div className="flex h-full flex-col space-y-3 p-4">
+                <div className={`flex h-full flex-1 flex-col ${layout === "dense" ? "space-y-2 p-3" : "space-y-3 p-4"}`}>
                   <div className={`flex items-center justify-between text-xs ${themeClasses.submuted}`}>
                     <span className={`rounded-full border px-2 py-1 ${themeClasses.badge}`}>{item.source}</span>
                     <time>{formatPublished(item.publishedAt)}</time>
                   </div>
 
-                  <h2 className="text-base font-semibold leading-snug text-slate-100">{item.title}</h2>
+                  <h2 className={`${layout === "dense" ? "text-sm" : "text-base"} font-semibold leading-snug`}>{item.title}</h2>
 
-                  <p className={`min-h-[96px] max-h-[96px] overflow-hidden text-sm leading-6 ${themeClasses.muted}`}>{item.summary}</p>
+                  <p className={`${layout === "dense" ? "min-h-[64px] max-h-[64px] text-xs" : "min-h-[96px] max-h-[96px] text-sm"} overflow-hidden leading-6 ${themeClasses.muted}`}>
+                    {item.summary}
+                  </p>
 
                   <div className="mt-auto flex flex-wrap items-center gap-2">
                     <a
@@ -658,62 +513,6 @@ export default function Home() {
                       </button>
                     ) : null}
                   </div>
-
-                  {iocById[item.id] ? (
-                    <div className={`rounded-lg border p-3 text-xs ${themeClasses.panel} ${themeClasses.muted}`}>
-                      {iocById[item.id]?.hasIocSection ? (
-                        <>
-                          <p className={`mb-2 ${themeClasses.submuted}`}>
-                            IOC section found ({iocById[item.id]?.sectionLabel ?? "ioc"}).
-                          </p>
-                          <p>IPs: {iocById[item.id]?.iocs.ips.length ?? 0}</p>
-                          <p>Domains: {iocById[item.id]?.iocs.domains.length ?? 0}</p>
-                          <p>URLs: {iocById[item.id]?.iocs.urls.length ?? 0}</p>
-                          <p>Hashes: {iocById[item.id]?.iocs.hashes.length ?? 0}</p>
-                          <p>CVEs: {iocById[item.id]?.iocs.cves.length ?? 0}</p>
-
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            <button
-                              onClick={() => handleDownloadCsv(item)}
-                              className={`rounded border px-2 py-1 text-xs transition ${themeClasses.inputBtn}`}
-                            >
-                              Download CSV
-                            </button>
-                            <button
-                              onClick={() => handleDownloadJson(item)}
-                              className={`rounded border px-2 py-1 text-xs transition ${themeClasses.inputBtn}`}
-                            >
-                              Download JSON
-                            </button>
-                            {(iocById[item.id]?.iocs.ips.length ?? 0) > 0 ? (
-                              <>
-                                <button
-                                  onClick={() => handleCopySplunkIpQuery(item)}
-                                  className={`rounded border px-2 py-1 text-xs transition ${themeClasses.inputBtn}`}
-                                >
-                                  {splunkCopiedById[item.id] ? "Splunk query copied" : "Copy Splunk IP query"}
-                                </button>
-                                <button
-                                  onClick={() => handleCopyKibanaIpQuery(item)}
-                                  className={`rounded border px-2 py-1 text-xs transition ${themeClasses.inputBtn}`}
-                                >
-                                  {kibanaCopiedById[item.id] ? "Kibana query copied" : "Copy Kibana IP query"}
-                                </button>
-                                <button
-                                  onClick={() => handleCopySigmaRule(item)}
-                                  className={`rounded border px-2 py-1 text-xs transition ${themeClasses.inputBtn}`}
-                                >
-                                  {sigmaCopiedById[item.id] ? "Sigma rule copied" : "Copy Sigma rule"}
-                                </button>
-                              </>
-                            ) : null}
-                          </div>
-                        </>
-                      ) : (
-                        <p>No explicit IOC section detected in this article.</p>
-                      )}
-                    </div>
-                  ) : null}
                 </div>
               </article>
             ))}
@@ -742,6 +541,40 @@ export default function Home() {
                       }}
                       className={`rounded-md border px-2 py-2 text-left text-xs transition ${
                         theme === option.value ? themeClasses.accentBtn : themeClasses.inputBtn
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div ref={layoutWidgetRef} className="fixed right-0 top-[8.4rem] z-50">
+          <div className="group relative flex items-center justify-end">
+            <button
+              onClick={() => setLayoutWidgetOpen((prev) => !prev)}
+              aria-label="Open layout selector"
+              className={`rounded-l-xl rounded-r-none border px-3 py-2 text-xs font-semibold shadow-lg transition-transform transition-opacity duration-200 ${layoutWidgetOpen ? "translate-x-0 opacity-100" : "translate-x-[68%] opacity-60 group-hover:translate-x-0 group-hover:opacity-100"} ${themeClasses.inputBtn}`}
+            >
+              ❮ Layout
+            </button>
+
+            {layoutWidgetOpen ? (
+              <div className={`absolute right-0 top-11 w-56 rounded-xl border p-3 shadow-2xl backdrop-blur ${themeClasses.panel}`}>
+                <p className={`mb-2 text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>Layout</p>
+                <div className="flex flex-col gap-2">
+                  {LAYOUT_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        setLayout(option.value);
+                        setLayoutWidgetOpen(false);
+                      }}
+                      className={`rounded-md border px-2 py-2 text-left text-xs transition ${
+                        layout === option.value ? themeClasses.accentBtn : themeClasses.inputBtn
                       }`}
                     >
                       {option.label}
