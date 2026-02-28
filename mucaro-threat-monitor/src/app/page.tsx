@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type LookbackOption = "1h" | "6h" | "12h" | "24h" | "3d" | "7d" | "30d";
 
@@ -44,6 +44,7 @@ type CategoryOption =
   | "with-iocs";
 
 type RefreshOption = "off" | "10m" | "30m" | "60m";
+type ThemeOption = "dark" | "light" | "nord" | "high-contrast" | "matrix";
 
 const LOOKBACKS: { label: string; value: LookbackOption }[] = [
   { label: "Last 1 hour", value: "1h" },
@@ -77,6 +78,14 @@ const REFRESH_OPTIONS: { label: string; value: RefreshOption }[] = [
   { label: "Every 10 minutes", value: "10m" },
   { label: "Every 30 minutes", value: "30m" },
   { label: "Every 60 minutes", value: "60m" },
+];
+
+const THEME_OPTIONS: { label: string; value: ThemeOption }[] = [
+  { label: "SOC Dark", value: "dark" },
+  { label: "Nord Calm", value: "nord" },
+  { label: "High Contrast", value: "high-contrast" },
+  { label: "Light", value: "light" },
+  { label: "Matrix", value: "matrix" },
 ];
 
 const REFRESH_MS: Record<Exclude<RefreshOption, "off">, number> = {
@@ -193,6 +202,9 @@ export default function Home() {
   const [lookback, setLookback] = useState<LookbackOption>("24h");
   const [category, setCategory] = useState<CategoryOption>("all");
   const [autoRefresh, setAutoRefresh] = useState<RefreshOption>("off");
+  const [theme, setTheme] = useState<ThemeOption>("dark");
+  const [themeWidgetOpen, setThemeWidgetOpen] = useState(false);
+  const themeWidgetRef = useRef<HTMLDivElement | null>(null);
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,6 +246,117 @@ export default function Home() {
 
     return () => clearInterval(id);
   }, [autoRefresh, loadNews]);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("mucaro-theme") as ThemeOption | null;
+    if (savedTheme && ["dark", "light", "nord", "high-contrast", "matrix"].includes(savedTheme)) {
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("mucaro-theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setThemeWidgetOpen(false);
+    };
+
+    const onPointerDown = (event: MouseEvent) => {
+      if (!themeWidgetRef.current) return;
+      if (!themeWidgetRef.current.contains(event.target as Node)) {
+        setThemeWidgetOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("mousedown", onPointerDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("mousedown", onPointerDown);
+    };
+  }, []);
+
+  const themeClasses = useMemo(() => {
+    return {
+      dark: {
+        page: "bg-slate-950 text-slate-100",
+        panel: "border-slate-700 bg-slate-900/70",
+        select: "border-slate-700 bg-slate-950 text-slate-100",
+        card: "border-slate-800 bg-slate-900/70",
+        cardHover: "hover:border-cyan-500/50 hover:shadow-cyan-900/30",
+        muted: "text-slate-300",
+        submuted: "text-slate-400",
+        subtle: "text-slate-500",
+        accentBtn: "bg-cyan-500 text-slate-950 hover:bg-cyan-400",
+        inputBtn: "border-slate-600 bg-slate-800 text-slate-200 hover:border-cyan-600 hover:text-cyan-200",
+        badge: "border-slate-700",
+        footerBorder: "border-slate-800",
+        divider: "text-slate-700",
+      },
+      light: {
+        page: "bg-slate-100 text-slate-900",
+        panel: "border-slate-300 bg-white/90",
+        select: "border-slate-300 bg-white text-slate-900",
+        card: "border-slate-200 bg-white",
+        cardHover: "hover:border-blue-400/60 hover:shadow-blue-200/40",
+        muted: "text-slate-700",
+        submuted: "text-slate-600",
+        subtle: "text-slate-500",
+        accentBtn: "bg-blue-600 text-white hover:bg-blue-500",
+        inputBtn: "border-slate-300 bg-white text-slate-700 hover:border-blue-500 hover:text-blue-700",
+        badge: "border-slate-300",
+        footerBorder: "border-slate-300",
+        divider: "text-slate-400",
+      },
+      nord: {
+        page: "bg-slate-900 text-slate-100",
+        panel: "border-slate-600 bg-slate-800/80",
+        select: "border-slate-500 bg-slate-800 text-slate-100",
+        card: "border-slate-600 bg-slate-800/70",
+        cardHover: "hover:border-sky-400/60 hover:shadow-sky-900/30",
+        muted: "text-slate-200",
+        submuted: "text-slate-300",
+        subtle: "text-slate-400",
+        accentBtn: "bg-sky-500 text-slate-950 hover:bg-sky-400",
+        inputBtn: "border-slate-500 bg-slate-800 text-slate-100 hover:border-sky-500 hover:text-sky-200",
+        badge: "border-slate-500",
+        footerBorder: "border-slate-600",
+        divider: "text-slate-500",
+      },
+      "high-contrast": {
+        page: "bg-black text-white",
+        panel: "border-white bg-black",
+        select: "border-white bg-black text-white",
+        card: "border-white bg-black",
+        cardHover: "hover:border-yellow-300 hover:shadow-yellow-900/30",
+        muted: "text-white",
+        submuted: "text-slate-200",
+        subtle: "text-slate-300",
+        accentBtn: "bg-yellow-300 text-black hover:bg-yellow-200",
+        inputBtn: "border-white bg-black text-white hover:border-yellow-300 hover:text-yellow-200",
+        badge: "border-white",
+        footerBorder: "border-white",
+        divider: "text-slate-300",
+      },
+      matrix: {
+        page: "bg-black text-green-300",
+        panel: "border-green-900 bg-green-950/30",
+        select: "border-green-900 bg-black text-green-300",
+        card: "border-green-900 bg-black/70",
+        cardHover: "hover:border-green-500/60 hover:shadow-green-900/30",
+        muted: "text-green-400",
+        submuted: "text-green-500",
+        subtle: "text-green-700",
+        accentBtn: "bg-green-500 text-black hover:bg-green-400",
+        inputBtn: "border-green-900 bg-black text-green-300 hover:border-green-500 hover:text-green-200",
+        badge: "border-green-900",
+        footerBorder: "border-green-900",
+        divider: "text-green-900",
+      },
+    }[theme];
+  }, [theme]);
 
   const headerText = useMemo(() => {
     const selected = LOOKBACKS.find((l) => l.value === lookback)?.label ?? "Last 24 hours";
@@ -375,7 +498,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
+    <main className={`min-h-screen ${themeClasses.page}`}>
       <div className="mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
         <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
@@ -388,20 +511,20 @@ export default function Home() {
               />
               <h1 className="text-3xl font-bold tracking-tight">Múcaro Threat Monitor</h1>
             </div>
-            <p className="mt-2 text-sm text-slate-300">{headerText}</p>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className={`mt-2 text-sm ${themeClasses.muted}`}>{headerText}</p>
+            <p className={`mt-1 text-xs ${themeClasses.subtle}`}>
               Last updated: {lastUpdated ? formatPublished(lastUpdated) : "not yet"}
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-900/70 p-3 md:flex-row md:flex-wrap md:items-end">
+          <div className={`flex flex-col gap-3 rounded-xl border p-3 md:flex-row md:flex-wrap md:items-end ${themeClasses.panel}`}>
             <div>
-              <label htmlFor="lookback" className="mb-2 block text-xs uppercase tracking-wider text-slate-400">
+              <label htmlFor="lookback" className={`mb-2 block text-xs uppercase tracking-wider ${themeClasses.submuted}`}>
                 Lookback window
               </label>
               <select
                 id="lookback"
-                className="w-52 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none ring-cyan-500 focus:ring-2"
+                className={`w-52 rounded-lg border px-3 py-2 text-sm outline-none ring-cyan-500 focus:ring-2 ${themeClasses.select}`}
                 value={lookback}
                 onChange={(e) => setLookback(e.target.value as LookbackOption)}
               >
@@ -414,12 +537,12 @@ export default function Home() {
             </div>
 
             <div>
-              <label htmlFor="category" className="mb-2 block text-xs uppercase tracking-wider text-slate-400">
+              <label htmlFor="category" className={`mb-2 block text-xs uppercase tracking-wider ${themeClasses.submuted}`}>
                 Category
               </label>
               <select
                 id="category"
-                className="w-64 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none ring-cyan-500 focus:ring-2"
+                className={`w-64 rounded-lg border px-3 py-2 text-sm outline-none ring-cyan-500 focus:ring-2 ${themeClasses.select}`}
                 value={category}
                 onChange={(e) => setCategory(e.target.value as CategoryOption)}
               >
@@ -432,12 +555,12 @@ export default function Home() {
             </div>
 
             <div>
-              <label htmlFor="autoRefresh" className="mb-2 block text-xs uppercase tracking-wider text-slate-400">
+              <label htmlFor="autoRefresh" className={`mb-2 block text-xs uppercase tracking-wider ${themeClasses.submuted}`}>
                 Auto-refresh
               </label>
               <select
                 id="autoRefresh"
-                className="w-52 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none ring-cyan-500 focus:ring-2"
+                className={`w-52 rounded-lg border px-3 py-2 text-sm outline-none ring-cyan-500 focus:ring-2 ${themeClasses.select}`}
                 value={autoRefresh}
                 onChange={(e) => setAutoRefresh(e.target.value as RefreshOption)}
               >
@@ -451,7 +574,17 @@ export default function Home() {
 
             <button
               onClick={() => loadNews()}
-              className="rounded-lg border border-cyan-700 bg-cyan-900/30 px-3 py-2 text-sm font-medium text-cyan-200 transition hover:bg-cyan-800/40"
+              className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                theme === "light"
+                  ? "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  : theme === "nord"
+                    ? "border-slate-500 bg-slate-800 text-slate-100 hover:bg-slate-700"
+                    : theme === "high-contrast"
+                      ? "border-white bg-black text-white hover:bg-neutral-900"
+                      : theme === "matrix"
+                        ? "border-green-800 bg-green-950/40 text-green-300 hover:bg-green-900/40"
+                        : "border-cyan-700 bg-cyan-900/30 text-cyan-200 hover:bg-cyan-800/40"
+              }`}
             >
               Refresh now
             </button>
@@ -463,7 +596,7 @@ export default function Home() {
         ) : error ? (
           <p className="rounded-lg border border-red-700 bg-red-950/50 p-4 text-red-300">{error}</p>
         ) : filteredItems.length === 0 ? (
-          <p className="rounded-lg border border-slate-700 bg-slate-900/50 p-4 text-slate-300">
+          <p className={`rounded-lg border p-4 ${themeClasses.panel} ${themeClasses.muted}`}>
             No results found for this time window/category. Try expanding lookback or changing category.
           </p>
         ) : (
@@ -471,7 +604,7 @@ export default function Home() {
             {filteredItems.map((item) => (
               <article
                 key={item.id}
-                className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70 shadow-[0_0_0_1px_rgba(148,163,184,0.04)] transition hover:border-cyan-500/50 hover:shadow-cyan-900/30"
+                className={`flex h-full flex-col overflow-hidden rounded-2xl border shadow-[0_0_0_1px_rgba(148,163,184,0.04)] transition ${themeClasses.card} ${themeClasses.cardHover}`}
               >
                 <a href={item.link} target="_blank" rel="noreferrer" className="block">
                   <div className="aspect-video w-full bg-slate-800">
@@ -498,28 +631,28 @@ export default function Home() {
                 </a>
 
                 <div className="flex h-full flex-col space-y-3 p-4">
-                  <div className="flex items-center justify-between text-xs text-slate-400">
-                    <span className="rounded-full border border-slate-700 px-2 py-1">{item.source}</span>
+                  <div className={`flex items-center justify-between text-xs ${themeClasses.submuted}`}>
+                    <span className={`rounded-full border px-2 py-1 ${themeClasses.badge}`}>{item.source}</span>
                     <time>{formatPublished(item.publishedAt)}</time>
                   </div>
 
                   <h2 className="text-base font-semibold leading-snug text-slate-100">{item.title}</h2>
 
-                  <p className="min-h-[96px] max-h-[96px] overflow-hidden text-sm leading-6 text-slate-300">{item.summary}</p>
+                  <p className={`min-h-[96px] max-h-[96px] overflow-hidden text-sm leading-6 ${themeClasses.muted}`}>{item.summary}</p>
 
                   <div className="mt-auto flex flex-wrap items-center gap-2">
                     <a
                       href={item.link}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center rounded-lg bg-cyan-500 px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-400"
+                      className={`inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition ${themeClasses.accentBtn}`}
                     >
                       Open Source
                     </a>
                     {item.hasIocSectionHint ? (
                       <button
                         onClick={() => handleExtractIocs(item)}
-                        className="inline-flex items-center rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-cyan-600 hover:text-cyan-200"
+                        className={`inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition ${themeClasses.inputBtn}`}
                       >
                         {iocLoadingById[item.id] ? "Extracting..." : "Extract IOCs"}
                       </button>
@@ -527,10 +660,10 @@ export default function Home() {
                   </div>
 
                   {iocById[item.id] ? (
-                    <div className="rounded-lg border border-slate-700 bg-slate-950/70 p-3 text-xs text-slate-300">
+                    <div className={`rounded-lg border p-3 text-xs ${themeClasses.panel} ${themeClasses.muted}`}>
                       {iocById[item.id]?.hasIocSection ? (
                         <>
-                          <p className="mb-2 text-slate-400">
+                          <p className={`mb-2 ${themeClasses.submuted}`}>
                             IOC section found ({iocById[item.id]?.sectionLabel ?? "ioc"}).
                           </p>
                           <p>IPs: {iocById[item.id]?.iocs.ips.length ?? 0}</p>
@@ -542,13 +675,13 @@ export default function Home() {
                           <div className="mt-3 flex flex-wrap gap-2">
                             <button
                               onClick={() => handleDownloadCsv(item)}
-                              className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:border-cyan-500 hover:text-cyan-200"
+                              className={`rounded border px-2 py-1 text-xs transition ${themeClasses.inputBtn}`}
                             >
                               Download CSV
                             </button>
                             <button
                               onClick={() => handleDownloadJson(item)}
-                              className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:border-cyan-500 hover:text-cyan-200"
+                              className={`rounded border px-2 py-1 text-xs transition ${themeClasses.inputBtn}`}
                             >
                               Download JSON
                             </button>
@@ -556,19 +689,19 @@ export default function Home() {
                               <>
                                 <button
                                   onClick={() => handleCopySplunkIpQuery(item)}
-                                  className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:border-cyan-500 hover:text-cyan-200"
+                                  className={`rounded border px-2 py-1 text-xs transition ${themeClasses.inputBtn}`}
                                 >
                                   {splunkCopiedById[item.id] ? "Splunk query copied" : "Copy Splunk IP query"}
                                 </button>
                                 <button
                                   onClick={() => handleCopyKibanaIpQuery(item)}
-                                  className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:border-cyan-500 hover:text-cyan-200"
+                                  className={`rounded border px-2 py-1 text-xs transition ${themeClasses.inputBtn}`}
                                 >
                                   {kibanaCopiedById[item.id] ? "Kibana query copied" : "Copy Kibana IP query"}
                                 </button>
                                 <button
                                   onClick={() => handleCopySigmaRule(item)}
-                                  className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:border-cyan-500 hover:text-cyan-200"
+                                  className={`rounded border px-2 py-1 text-xs transition ${themeClasses.inputBtn}`}
                                 >
                                   {sigmaCopiedById[item.id] ? "Sigma rule copied" : "Copy Sigma rule"}
                                 </button>
@@ -586,10 +719,44 @@ export default function Home() {
             ))}
           </section>
         )}
-        <footer className="mt-10 border-t border-slate-800 pt-4 text-center text-xs text-slate-500">
+        <div ref={themeWidgetRef} className="fixed right-0 top-20 z-50">
+          <div className="group relative flex items-center justify-end">
+            <button
+              onClick={() => setThemeWidgetOpen((prev) => !prev)}
+              aria-label="Open theme selector"
+              className={`rounded-l-xl rounded-r-none border px-3 py-2 text-xs font-semibold shadow-lg transition-transform transition-opacity duration-200 ${themeWidgetOpen ? "translate-x-0 opacity-100" : "translate-x-[68%] opacity-60 group-hover:translate-x-0 group-hover:opacity-100"} ${themeClasses.inputBtn}`}
+            >
+              ❮ Theme
+            </button>
+
+            {themeWidgetOpen ? (
+              <div className={`absolute right-0 top-11 w-56 rounded-xl border p-3 shadow-2xl backdrop-blur ${themeClasses.panel}`}>
+                <p className={`mb-2 text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>Theme</p>
+                <div className="flex flex-col gap-2">
+                  {THEME_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => {
+                        setTheme(option.value);
+                        setThemeWidgetOpen(false);
+                      }}
+                      className={`rounded-md border px-2 py-2 text-left text-xs transition ${
+                        theme === option.value ? themeClasses.accentBtn : themeClasses.inputBtn
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <footer className={`mt-10 border-t pt-4 text-center text-xs ${themeClasses.footerBorder} ${themeClasses.subtle}`}>
           <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
             <span>© {new Date().getFullYear()} Múcaro. All rights reserved.</span>
-            <span className="hidden sm:inline text-slate-700">•</span>
+            <span className={`hidden sm:inline ${themeClasses.divider}`}>•</span>
             <a
               href="https://x.com/mucaroTM"
               target="_blank"
