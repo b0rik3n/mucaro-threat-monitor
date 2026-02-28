@@ -147,10 +147,8 @@ export default function Home() {
   const [autoRefresh, setAutoRefresh] = useState<RefreshOption>("off");
   const [theme, setTheme] = useState<ThemeOption>("dark");
   const [layout, setLayout] = useState<LayoutOption>("grid");
-  const [themeWidgetOpen, setThemeWidgetOpen] = useState(false);
-  const [layoutWidgetOpen, setLayoutWidgetOpen] = useState(false);
-  const themeWidgetRef = useRef<HTMLDivElement | null>(null);
-  const layoutWidgetRef = useRef<HTMLDivElement | null>(null);
+  const [displayWidgetOpen, setDisplayWidgetOpen] = useState(false);
+  const displayWidgetRef = useRef<HTMLDivElement | null>(null);
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -215,18 +213,14 @@ export default function Home() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setThemeWidgetOpen(false);
-        setLayoutWidgetOpen(false);
+        setDisplayWidgetOpen(false);
       }
     };
 
     const onPointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (themeWidgetRef.current && !themeWidgetRef.current.contains(target)) {
-        setThemeWidgetOpen(false);
-      }
-      if (layoutWidgetRef.current && !layoutWidgetRef.current.contains(target)) {
-        setLayoutWidgetOpen(false);
+      if (displayWidgetRef.current && !displayWidgetRef.current.contains(target)) {
+        setDisplayWidgetOpen(false);
       }
     };
 
@@ -518,27 +512,24 @@ export default function Home() {
             ))}
           </section>
         )}
-        <div ref={themeWidgetRef} className="fixed right-0 top-20 z-50">
+        <div ref={displayWidgetRef} className="fixed right-0 top-20 z-50">
           <div className="group relative flex items-center justify-end">
             <button
-              onClick={() => setThemeWidgetOpen((prev) => !prev)}
-              aria-label="Open theme selector"
-              className={`rounded-l-xl rounded-r-none border px-3 py-2 text-xs font-semibold shadow-lg transition-transform transition-opacity duration-200 ${themeWidgetOpen ? "translate-x-0 opacity-100" : "translate-x-[68%] opacity-60 group-hover:translate-x-0 group-hover:opacity-100"} ${themeClasses.inputBtn}`}
+              onClick={() => setDisplayWidgetOpen((prev) => !prev)}
+              aria-label="Open display options"
+              className={`rounded-l-xl rounded-r-none border px-3 py-2 text-xs font-semibold shadow-lg transition-transform transition-opacity duration-200 ${displayWidgetOpen ? "translate-x-0 opacity-100" : "translate-x-[68%] opacity-60 group-hover:translate-x-0 group-hover:opacity-100"} ${themeClasses.inputBtn}`}
             >
-              ❮ Theme
+              ❮ Display
             </button>
 
-            {themeWidgetOpen ? (
-              <div className={`absolute right-0 top-11 w-56 rounded-xl border p-3 shadow-2xl backdrop-blur ${themeClasses.panel}`}>
+            {displayWidgetOpen ? (
+              <div className={`absolute right-0 top-11 w-64 rounded-xl border p-3 shadow-2xl backdrop-blur ${themeClasses.panel}`}>
                 <p className={`mb-2 text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>Theme</p>
-                <div className="flex flex-col gap-2">
+                <div className="mb-3 flex flex-col gap-2">
                   {THEME_OPTIONS.map((option) => (
                     <button
                       key={option.value}
-                      onClick={() => {
-                        setTheme(option.value);
-                        setThemeWidgetOpen(false);
-                      }}
+                      onClick={() => setTheme(option.value)}
                       className={`rounded-md border px-2 py-2 text-left text-xs transition ${
                         theme === option.value ? themeClasses.accentBtn : themeClasses.inputBtn
                       }`}
@@ -547,32 +538,13 @@ export default function Home() {
                     </button>
                   ))}
                 </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
 
-        <div ref={layoutWidgetRef} className="fixed right-0 top-[8.4rem] z-50">
-          <div className="group relative flex items-center justify-end">
-            <button
-              onClick={() => setLayoutWidgetOpen((prev) => !prev)}
-              aria-label="Open layout selector"
-              className={`rounded-l-xl rounded-r-none border px-3 py-2 text-xs font-semibold shadow-lg transition-transform transition-opacity duration-200 ${layoutWidgetOpen ? "translate-x-0 opacity-100" : "translate-x-[68%] opacity-60 group-hover:translate-x-0 group-hover:opacity-100"} ${themeClasses.inputBtn}`}
-            >
-              ❮ Layout
-            </button>
-
-            {layoutWidgetOpen ? (
-              <div className={`absolute right-0 top-11 w-56 rounded-xl border p-3 shadow-2xl backdrop-blur ${themeClasses.panel}`}>
                 <p className={`mb-2 text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>Layout</p>
                 <div className="flex flex-col gap-2">
                   {LAYOUT_OPTIONS.map((option) => (
                     <button
                       key={option.value}
-                      onClick={() => {
-                        setLayout(option.value);
-                        setLayoutWidgetOpen(false);
-                      }}
+                      onClick={() => setLayout(option.value)}
                       className={`rounded-md border px-2 py-2 text-left text-xs transition ${
                         layout === option.value ? themeClasses.accentBtn : themeClasses.inputBtn
                       }`}
