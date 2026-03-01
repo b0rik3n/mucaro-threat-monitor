@@ -10,17 +10,16 @@ Múcaro Threat Monitor pulls current cyber news from trusted sources, lets you f
 - Category filter (vulns, ransomware, APT, breaches, phishing, malware, cloud, IAM, zero-days, detection engineering, compliance, ICS/OT)
 - Auto-refresh modes (off, 10m, 30m, 60m) + manual refresh
 - News card UI with source, published timestamp, summary, and link-out
-- Trending Topics panel with explainable 24h momentum scoring
 - Thumbnail enrichment fallback via OpenGraph/Twitter metadata
 - Source-branded fallback placeholder when no preview image exists
 - Basic event/webinar filtering to keep feed news-focused
 
 ## Current Sources
 
-Core cyber media and research:
 - The Hacker News
 - BleepingComputer
 - Krebs on Security
+- CISA Alerts
 - Dark Reading
 - Cybersecurity Dive
 - SecurityWeek
@@ -28,18 +27,6 @@ Core cyber media and research:
 - Unit 42
 - Google Threat Intelligence
 - Koi Security
-
-Government + CERT/CSIRT pack:
-- CISA Alerts (US)
-- CERT-EU
-- CERT-FR (ANSSI)
-- JPCERT/CC
-- CERT Polska
-- CIRCL
-- NCSC Netherlands
-- NCSC UK
-- CERT-Bund (BSI)
-- ENISA News
 
 ## Tech Stack
 
@@ -82,27 +69,6 @@ Valid lookback values:
 - `24h`
 - `3d`
 - `7d`
-
-### `GET /api/trends?lookback=<window>`
-
-Example:
-
-```bash
-curl "http://localhost:3000/api/trends?lookback=7d"
-```
-
-Valid lookback values:
-
-- `24h`
-- `3d`
-- `7d`
-- `30d`
-
-Trend score is explainable and currently weighted as:
-
-`score = source_diversity*2 + weighted_mentions_24h + exploit_signals*5 + kev_or_cisa_signals*6`
-
-`weighted_mentions_24h` boosts official CERT/CSIRT and government advisory sources.
 
 ## Roadmap
 

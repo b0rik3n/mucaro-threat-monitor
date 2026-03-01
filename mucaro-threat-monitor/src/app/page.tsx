@@ -27,24 +27,6 @@ type IocResult = {
   };
 };
 
-type TrendItem = {
-  id: string;
-  label: string;
-  score: number;
-  stage: "emerging" | "rising" | "hot" | "cooling";
-  mentions24h: number;
-  weightedMentions24h: number;
-  mentionsPrev24h: number;
-  uniqueSources24h: number;
-  velocityDeltaPct: number;
-  latestSeenAt: string;
-  evidence: {
-    cveCount: number;
-    exploitSignalCount: number;
-    kevSignalCount: number;
-  };
-  sources: string[];
-};
 
 type CategoryOption =
   | "all"
@@ -144,18 +126,6 @@ function formatPublished(value: string): string {
   }).format(date);
 }
 
-function trendStageLabel(stage: TrendItem["stage"]): string {
-  switch (stage) {
-    case "hot":
-      return "Hot";
-    case "rising":
-      return "Rising";
-    case "cooling":
-      return "Cooling";
-    default:
-      return "Emerging";
-  }
-}
 
 function itemMatchesCategory(item: NewsItem, category: CategoryOption): boolean {
   if (category === "all") return true;
@@ -180,7 +150,6 @@ export default function Home() {
   const [displayWidgetOpen, setDisplayWidgetOpen] = useState(false);
   const displayWidgetRef = useRef<HTMLDivElement | null>(null);
   const [items, setItems] = useState<NewsItem[]>([]);
-  const [trends, setTrends] = useState<TrendItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -192,19 +161,11 @@ export default function Home() {
     setError(null);
 
     try {
-      const [newsRes, trendsRes] = await Promise.all([
-        fetch(`/api/news?lookback=${lookback}`),
-        fetch("/api/trends?lookback=7d"),
-      ]);
+      const res = await fetch(`/api/news?lookback=${lookback}`);
+      if (!res.ok) throw new Error("Could not load feed.");
 
-      if (!newsRes.ok) throw new Error("Could not load feed.");
-      if (!trendsRes.ok) throw new Error("Could not load trend data.");
-
-      const newsData = await newsRes.json();
-      const trendsData = await trendsRes.json();
-
-      setItems(newsData.items ?? []);
-      setTrends(trendsData.trends ?? []);
+      const data = await res.json();
+      setItems(data.items ?? []);
       setLastUpdated(new Date().toISOString());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -482,37 +443,6 @@ export default function Home() {
           </div>
         </header>
 
-        {!loading && !error && trends.length > 0 ? (
-          <section className={`mb-6 rounded-xl border p-4 ${themeClasses.panel}`}>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wider">Trending Topics (24h momentum)</h2>
-              <span className={`text-xs ${themeClasses.submuted}`}>Based on the last 7 days of source data</span>
-            </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {trends.slice(0, 6).map((trend) => (
-                <article key={trend.id} className={`rounded-lg border p-3 ${themeClasses.card}`}>
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-semibold leading-tight">{trend.label}</h3>
-                    <span className={`rounded-full border px-2 py-1 text-[11px] ${themeClasses.badge}`}>
-                      {trendStageLabel(trend.stage)}
-                    </span>
-                  </div>
-                  <div className={`grid grid-cols-2 gap-2 text-xs ${themeClasses.muted}`}>
-                    <p>Score: <span className="font-semibold">{trend.score}</span></p>
-                    <p>24h mentions: <span className="font-semibold">{trend.mentions24h}</span></p>
-                    <p>Weighted mentions: <span className="font-semibold">{trend.weightedMentions24h.toFixed(1)}</span></p>
-                    <p>Source diversity: <span className="font-semibold">{trend.uniqueSources24h}</span></p>
-                    <p>Velocity: <span className="font-semibold">{trend.velocityDeltaPct}%</span></p>
-                  </div>
-                  <p className={`mt-2 text-[11px] ${themeClasses.submuted}`}>
-                    Signals: exploit {trend.evidence.exploitSignalCount}, KEV/CISA {trend.evidence.kevSignalCount}
-                  </p>
-                </article>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
         {loading ? (
           <p className="text-slate-400">Loading latest intelligence...</p>
         ) : error ? (
@@ -541,11 +471,7 @@ export default function Home() {
                       <img src={item.thumbnail} alt={item.title} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950 text-center">
-                        <span className="mb-2 rounded-md border border-slate-600 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-300">
-                          {item.source}
-                        </span>
                         <span className="text-sm font-medium text-slate-200">No preview image</span>
-                        <span className="mt-1 px-3 text-[11px] text-slate-400">Using source-branded fallback</span>
                       </div>
                     )}
                   </div>

@@ -1,15 +1,6 @@
 import Parser from "rss-parser";
 
 export type LookbackOption = "1h" | "6h" | "12h" | "24h" | "3d" | "7d" | "30d";
-export type SourceType = "media" | "vendor" | "cert-csirt" | "government";
-
-export type FeedSource = {
-  name: string;
-  url: string;
-  sourceType: SourceType;
-  region: string;
-  priorityWeight: number;
-};
 
 export type NewsItem = {
   id: string;
@@ -22,41 +13,18 @@ export type NewsItem = {
   hasIocSectionHint: boolean;
 };
 
-const SOURCE_FALLBACK_THUMBNAILS: Record<string, string> = {
-  "SecurityWeek": "https://logo.clearbit.com/securityweek.com",
-  "The Hacker News": "https://logo.clearbit.com/thehackernews.com",
-  BleepingComputer: "https://logo.clearbit.com/bleepingcomputer.com",
-  "Krebs on Security": "https://logo.clearbit.com/krebsonsecurity.com",
-  "Dark Reading": "https://logo.clearbit.com/darkreading.com",
-  "Cybersecurity Dive": "https://logo.clearbit.com/cybersecuritydive.com",
-  "Unit 42": "https://logo.clearbit.com/paloaltonetworks.com",
-  "Google Threat Intelligence": "https://logo.clearbit.com/google.com",
-  "CISA Alerts": "https://logo.clearbit.com/cisa.gov",
-};
-
-export const FEEDS: FeedSource[] = [
-  { name: "The Hacker News", url: "https://feeds.feedburner.com/TheHackersNews", sourceType: "media", region: "global", priorityWeight: 1.0 },
-  { name: "BleepingComputer", url: "https://www.bleepingcomputer.com/feed/", sourceType: "media", region: "global", priorityWeight: 1.0 },
-  { name: "Krebs on Security", url: "https://krebsonsecurity.com/feed/", sourceType: "media", region: "US", priorityWeight: 1.0 },
-  { name: "CISA Alerts", url: "https://www.cisa.gov/cybersecurity-advisories/all.xml", sourceType: "government", region: "US", priorityWeight: 1.4 },
-  { name: "Dark Reading", url: "https://www.darkreading.com/rss.xml", sourceType: "media", region: "global", priorityWeight: 1.0 },
-  { name: "Cybersecurity Dive", url: "https://www.cybersecuritydive.com/feeds/news/", sourceType: "media", region: "US", priorityWeight: 1.0 },
-  { name: "SecurityWeek", url: "https://www.securityweek.com/feed/", sourceType: "media", region: "global", priorityWeight: 1.0 },
-  { name: "The DFIR Report", url: "https://thedfirreport.com/feed/", sourceType: "media", region: "global", priorityWeight: 1.1 },
-  { name: "Unit 42", url: "https://unit42.paloaltonetworks.com/feed/", sourceType: "vendor", region: "global", priorityWeight: 1.1 },
-  { name: "Google Threat Intelligence", url: "https://cloudblog.withgoogle.com/topics/threat-intelligence/rss", sourceType: "vendor", region: "global", priorityWeight: 1.1 },
-  { name: "Koi Security", url: "https://www.koi.ai/blog/rss.xml", sourceType: "vendor", region: "global", priorityWeight: 1.0 },
-
-  // CERT / CSIRT pack
-  { name: "CERT-EU", url: "https://cert.europa.eu/publications/security-advisories/rss", sourceType: "cert-csirt", region: "EU", priorityWeight: 1.6 },
-  { name: "CERT-FR", url: "https://www.cert.ssi.gouv.fr/feed/", sourceType: "cert-csirt", region: "FR", priorityWeight: 1.6 },
-  { name: "JPCERT/CC", url: "https://www.jpcert.or.jp/english/rss/jpcert-en.rdf", sourceType: "cert-csirt", region: "JP", priorityWeight: 1.5 },
-  { name: "CERT Polska", url: "https://cert.pl/en/feed/", sourceType: "cert-csirt", region: "PL", priorityWeight: 1.5 },
-  { name: "CIRCL", url: "https://www.circl.lu/feed/", sourceType: "cert-csirt", region: "LU", priorityWeight: 1.5 },
-  { name: "NCSC Netherlands", url: "https://www.ncsc.nl/rss.xml", sourceType: "cert-csirt", region: "NL", priorityWeight: 1.5 },
-  { name: "NCSC UK", url: "https://www.ncsc.gov.uk/api/1/services/v1/report-rss-feed", sourceType: "cert-csirt", region: "UK", priorityWeight: 1.5 },
-  { name: "CERT-Bund (BSI)", url: "https://www.bsi.bund.de/SiteGlobals/Functions/RSSFeed/RSSNewsfeed/RSSNewsfeed.xml", sourceType: "cert-csirt", region: "DE", priorityWeight: 1.5 },
-  { name: "ENISA News", url: "https://www.enisa.europa.eu/news/enisa-news/RSS", sourceType: "government", region: "EU", priorityWeight: 1.3 },
+const FEEDS = [
+  { name: "The Hacker News", url: "https://feeds.feedburner.com/TheHackersNews" },
+  { name: "BleepingComputer", url: "https://www.bleepingcomputer.com/feed/" },
+  { name: "Krebs on Security", url: "https://krebsonsecurity.com/feed/" },
+  { name: "CISA Alerts", url: "https://www.cisa.gov/cybersecurity-advisories/all.xml" },
+  { name: "Dark Reading", url: "https://www.darkreading.com/rss.xml" },
+  { name: "Cybersecurity Dive", url: "https://www.cybersecuritydive.com/feeds/news/" },
+  { name: "SecurityWeek", url: "https://www.securityweek.com/feed/" },
+  { name: "The DFIR Report", url: "https://thedfirreport.com/feed/" },
+  { name: "Unit 42", url: "https://unit42.paloaltonetworks.com/feed/" },
+  { name: "Google Threat Intelligence", url: "https://cloudblog.withgoogle.com/topics/threat-intelligence/rss" },
+  { name: "Koi Security", url: "https://www.koi.ai/blog/rss.xml" },
 ];
 
 const parser = new Parser({
@@ -67,14 +35,6 @@ const parser = new Parser({
 });
 
 const pageMetaCache = new Map<string, { image?: string; description?: string; hasIocHeading?: boolean }>();
-
-export function getSourceProfile(sourceName: string): FeedSource | undefined {
-  return FEEDS.find((source) => source.name === sourceName);
-}
-
-export function getSourceWeight(sourceName: string): number {
-  return getSourceProfile(sourceName)?.priorityWeight ?? 1;
-}
 
 function extractMetaImage(html: string): string | undefined {
   const patterns = [
@@ -262,7 +222,7 @@ export async function fetchCyberNews(lookback: LookbackOption): Promise<NewsItem
       const summary = item.summary === "No summary available." ? (meta.description ?? item.summary) : item.summary;
       return {
         ...item,
-        thumbnail: meta.image ?? item.thumbnail ?? SOURCE_FALLBACK_THUMBNAILS[item.source],
+        thumbnail: meta.image ?? item.thumbnail,
         summary,
         hasIocSectionHint: Boolean(meta.hasIocHeading),
       };
