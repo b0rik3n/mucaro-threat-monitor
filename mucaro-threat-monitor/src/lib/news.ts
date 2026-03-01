@@ -182,6 +182,18 @@ function hasIocHeadingInHtml(html: string): boolean {
   return headingRegex.test(html);
 }
 
+function extractImageFromHtmlFragment(html?: string): string | undefined {
+  if (!html) return;
+  const match = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
+  return match?.[1];
+}
+
+function extractDirectImageUrl(text?: string): string | undefined {
+  if (!text) return;
+  const match = text.match(/https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|gif)(?:\?[^\s"'<>]*)?/i);
+  return match?.[0];
+}
+
 function pickThumbnail(item: Parser.Item): string | undefined {
   const anyItem = item as Parser.Item & {
     enclosure?: { url?: string; type?: string };
@@ -190,11 +202,17 @@ function pickThumbnail(item: Parser.Item): string | undefined {
     "media:group"?: { "media:content"?: { $?: { url?: string } }[] };
   };
 
+  const encoded = item["content:encoded" as keyof Parser.Item] as string | undefined;
+
   return (
     anyItem.enclosure?.url ||
     anyItem["media:thumbnail"]?.[0]?.$?.url ||
     anyItem["media:content"]?.[0]?.$?.url ||
-    anyItem["media:group"]?.["media:content"]?.[0]?.$?.url
+    anyItem["media:group"]?.["media:content"]?.[0]?.$?.url ||
+    extractImageFromHtmlFragment(item.content) ||
+    extractImageFromHtmlFragment(encoded) ||
+    extractDirectImageUrl(item.content) ||
+    extractDirectImageUrl(encoded)
   );
 }
 
