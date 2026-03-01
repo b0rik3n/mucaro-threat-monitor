@@ -135,28 +135,6 @@ function itemMatchesCategory(item: NewsItem, category: CategoryOption): boolean 
   return CATEGORY_KEYWORDS[category].some((kw) => haystack.includes(kw));
 }
 
-type TrendTile = {
-  id: string;
-  label: string;
-  mentions: number;
-  deltaPct: number;
-  sparkline: number[];
-};
-
-function sparkPoints(values: number[], width = 120, height = 28): string {
-  if (values.length === 0) return "";
-  const max = Math.max(...values, 1);
-  const step = values.length > 1 ? width / (values.length - 1) : width;
-
-  return values
-    .map((value, idx) => {
-      const x = idx * step;
-      const y = height - (value / max) * height;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-}
-
 function getHostname(link: string): string {
   try {
     return new URL(link).hostname.replace(/^www\./, "");
@@ -181,7 +159,6 @@ export default function Home() {
   const [displayWidgetOpen, setDisplayWidgetOpen] = useState(false);
   const displayWidgetRef = useRef<HTMLDivElement | null>(null);
   const [items, setItems] = useState<NewsItem[]>([]);
-  const [trendSourceItems, setTrendSourceItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -199,7 +176,6 @@ export default function Home() {
       const data = await res.json();
 
       setItems(data.items ?? []);
-      setTrendSourceItems(data.items ?? []);
       setLastUpdated(new Date().toISOString());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -356,53 +332,6 @@ export default function Home() {
     [items, category]
   );
 
-  const trendTiles = useMemo<TrendTile[]>(() => {
-    const topicDefs = [
-      { id: "vuln-cve", label: "Vuln / CVE" },
-      { id: "ransomware", label: "Ransomware" },
-      { id: "zero-day", label: "Zero-Day" },
-      { id: "malware", label: "Malware" },
-      { id: "phishing", label: "Phishing" },
-      { id: "apt", label: "APT / Actor" },
-      { id: "breach", label: "Breaches" },
-      { id: "cloud", label: "Cloud" },
-      { id: "iam", label: "Identity" },
-      { id: "ics-ot", label: "ICS / OT" },
-    ] as const;
-
-    const now = Date.now();
-    const bucketMs = 4 * 60 * 60 * 1000;
-    const bucketCount = 6;
-
-    return topicDefs
-      .map((topic) => {
-        const matching = trendSourceItems.filter((item) => itemMatchesCategory(item, topic.id));
-
-        const sparkline = Array.from({ length: bucketCount }, () => 0);
-        for (const item of matching) {
-          const ageMs = now - new Date(item.publishedAt).getTime();
-          if (ageMs < 0 || ageMs > bucketMs * bucketCount) continue;
-          const idxFromRight = Math.floor(ageMs / bucketMs);
-          const bucketIdx = bucketCount - 1 - idxFromRight;
-          if (bucketIdx >= 0 && bucketIdx < bucketCount) sparkline[bucketIdx] += 1;
-        }
-
-        const recent = sparkline[bucketCount - 1] + sparkline[bucketCount - 2];
-        const prior = Math.max(sparkline[bucketCount - 3] + sparkline[bucketCount - 4], 1);
-        const deltaPct = Math.round(((recent - prior) / prior) * 100);
-
-        return {
-          id: topic.id,
-          label: topic.label,
-          mentions: matching.length,
-          deltaPct,
-          sparkline,
-        };
-      })
-      .sort((a, b) => b.mentions - a.mentions)
-      .slice(0, 6);
-  }, [trendSourceItems]);
-
   async function handleExtractIocs(item: NewsItem) {
     setIocLoadingById((prev) => ({ ...prev, [item.id]: true }));
 
@@ -523,61 +452,6 @@ export default function Home() {
             </button>
           </div>
         </header>
-
-        {!loading && !error && trendTiles.length > 0 ? (
-          <section className={`mb-6 rounded-xl border p-3 ${themeClasses.panel}`}>
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <h2 className="text-xs font-semibold uppercase tracking-wider">Trending Topics</h2>
-                {category !== "all" ? (
-                  <button
-                    type="button"
-                    onClick={() => setCategory("all")}
-                    className={`rounded-md border px-2 py-1 text-[10px] font-semibold transition ${themeClasses.inputBtn}`}
-                    title="Clear category filter"
-                  >
-                    Clear filter
-                  </button>
-                ) : null}
-              </div>
-              <span className={`text-[11px] ${themeClasses.submuted}`}>24h mini-sparks</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-              {trendTiles.map((trend) => {
-                const points = sparkPoints(trend.sparkline);
-                const isUp = trend.deltaPct >= 0;
-                const isActive = category === (trend.id as CategoryOption);
-                return (
-                  <button
-                    key={trend.id}
-                    type="button"
-                    onClick={() => setCategory(trend.id as CategoryOption)}
-                    className={`rounded-lg border p-2 text-left transition ${themeClasses.card} ${themeClasses.cardHover} ${isActive ? "ring-2 ring-cyan-500" : ""}`}
-                    title={`Filter feed by ${trend.label}`}
-                  >
-                    <div className="mb-1 flex items-start justify-between gap-1">
-                      <h3 className="text-[11px] font-semibold leading-tight">{trend.label}</h3>
-                      <span className={`text-[10px] font-semibold ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
-                        {isUp ? "+" : ""}
-                        {trend.deltaPct}%
-                      </span>
-                    </div>
-                    <p className={`mb-1 text-[10px] ${themeClasses.submuted}`}>{trend.mentions} mentions</p>
-                    <svg viewBox="0 0 120 28" className="h-7 w-full" role="img" aria-label={`${trend.label} sparkline`}>
-                      <polyline
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        points={points}
-                        className={isUp ? "text-emerald-400" : "text-cyan-400"}
-                      />
-                    </svg>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
 
         {loading ? (
           <p className="text-slate-400">Loading latest intelligence...</p>
