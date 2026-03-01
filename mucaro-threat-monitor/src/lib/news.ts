@@ -35,6 +35,37 @@ const parser = new Parser({
 });
 
 const pageMetaCache = new Map<string, { image?: string; description?: string; hasIocHeading?: boolean }>();
+const META_MAX_BYTES = 512 * 1024;
+
+async function readTextWithLimit(response: Response, maxBytes: number): Promise<string> {
+  const contentLength = Number(response.headers.get("content-length") ?? "0");
+  if (contentLength > maxBytes) {
+    throw new Error("Response too large");
+  }
+
+  if (!response.body) return "";
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let text = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+
+    total += value.byteLength;
+    if (total > maxBytes) {
+      throw new Error("Response too large");
+    }
+
+    text += decoder.decode(value, { stream: true });
+  }
+
+  text += decoder.decode();
+  return text;
+}
 
 function extractMetaImage(html: string): string | undefined {
   const patterns = [
@@ -75,7 +106,7 @@ async function fetchPageMeta(url: string): Promise<{ image?: string; description
 
     if (!response.ok) return {};
 
-    const html = await response.text();
+    const html = await readTextWithLimit(response, META_MAX_BYTES);
     const meta = {
       image: extractMetaImage(html),
       description: extractMetaDescription(html),
