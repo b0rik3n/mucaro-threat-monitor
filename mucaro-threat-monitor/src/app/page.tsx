@@ -150,6 +150,32 @@ function getWebsiteLogo(link: string): { primary: string; fallback: string; host
   return { primary, fallback, host };
 }
 
+function flattenIocs(result: IocResult): { type: string; value: string }[] {
+  return [
+    ...result.iocs.ips.map((v) => ({ type: "ip", value: v })),
+    ...result.iocs.domains.map((v) => ({ type: "domain", value: v })),
+    ...result.iocs.urls.map((v) => ({ type: "url", value: v })),
+    ...result.iocs.hashes.map((v) => ({ type: "hash", value: v })),
+    ...result.iocs.cves.map((v) => ({ type: "cve", value: v })),
+  ];
+}
+
+function buildSplunkIpTermQuery(ips: string[], indexName = "<your_index>"): string {
+  const uniqueIps = [...new Set(ips.map((ip) => ip.trim()).filter(Boolean))];
+  if (uniqueIps.length === 0) return "";
+
+  const terms = uniqueIps.map((ip) => `TERM(${ip})`).join(" OR ");
+  return `index=${indexName} ${terms}`;
+}
+
+function buildKibanaIpQuery(ips: string[]): string {
+  const uniqueIps = [...new Set(ips.map((ip) => ip.trim()).filter(Boolean))];
+  if (uniqueIps.length === 0) return "";
+
+  const ipList = uniqueIps.map((ip) => `"${ip}"`).join(" or ");
+  return `source.ip: (${ipList}) or destination.ip: (${ipList}) or client.ip: (${ipList}) or server.ip: (${ipList})`;
+}
+
 export default function Home() {
   const [lookback, setLookback] = useState<LookbackOption>("24h");
   const [category, setCategory] = useState<CategoryOption>("all");
@@ -163,7 +189,9 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [iocLoadingById, setIocLoadingById] = useState<Record<string, boolean>>({});
-  const [, setIocById] = useState<Record<string, IocResult | undefined>>({});
+  const [iocById, setIocById] = useState<Record<string, IocResult | undefined>>({});
+  const [splunkCopiedById, setSplunkCopiedById] = useState<Record<string, boolean>>({});
+  const [kibanaCopiedById, setKibanaCopiedById] = useState<Record<string, boolean>>({});
 
   const loadNews = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -358,6 +386,91 @@ export default function Home() {
     }
   }
 
+  function downloadFile(filename: string, content: string, contentType: string) {
+    const blob = new Blob([content], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleDownloadCsv(item: NewsItem) {
+    const result = iocById[item.id];
+    if (!result?.hasIocSection) return;
+
+    const rows = flattenIocs(result);
+    const now = new Date().toISOString();
+    const csvRows = [
+      ["type", "value", "article_url", "source", "extracted_at"],
+      ...rows.map((r) => [r.type, r.value, item.link, item.source, now]),
+    ];
+
+    const csv = csvRows
+      .map((row) => row.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    downloadFile(`iocs-${item.id.slice(0, 16)}.csv`, csv, "text/csv;charset=utf-8");
+  }
+
+  function handleDownloadJson(item: NewsItem) {
+    const result = iocById[item.id];
+    if (!result?.hasIocSection) return;
+
+    const payload = {
+      source: item.source,
+      articleUrl: item.link,
+      extractedAt: new Date().toISOString(),
+      sectionLabel: result.sectionLabel,
+      iocs: result.iocs,
+    };
+
+    downloadFile(
+      `iocs-${item.id.slice(0, 16)}.json`,
+      JSON.stringify(payload, null, 2),
+      "application/json"
+    );
+  }
+
+  async function handleCopySplunkIpQuery(item: NewsItem) {
+    const result = iocById[item.id];
+    if (!result?.hasIocSection) return;
+
+    const query = buildSplunkIpTermQuery(result.iocs.ips);
+    if (!query) return;
+
+    try {
+      await navigator.clipboard.writeText(query);
+      setSplunkCopiedById((prev) => ({ ...prev, [item.id]: true }));
+      window.setTimeout(() => {
+        setSplunkCopiedById((prev) => ({ ...prev, [item.id]: false }));
+      }, 1800);
+    } catch {
+      // Clipboard can fail on insecure contexts, fallback to file download.
+      downloadFile(`splunk-ip-query-${item.id.slice(0, 16)}.txt`, query, "text/plain;charset=utf-8");
+    }
+  }
+
+  async function handleCopyKibanaIpQuery(item: NewsItem) {
+    const result = iocById[item.id];
+    if (!result?.hasIocSection) return;
+
+    const query = buildKibanaIpQuery(result.iocs.ips);
+    if (!query) return;
+
+    try {
+      await navigator.clipboard.writeText(query);
+      setKibanaCopiedById((prev) => ({ ...prev, [item.id]: true }));
+      window.setTimeout(() => {
+        setKibanaCopiedById((prev) => ({ ...prev, [item.id]: false }));
+      }, 1800);
+    } catch {
+      downloadFile(`kibana-ip-query-${item.id.slice(0, 16)}.txt`, query, "text/plain;charset=utf-8");
+    }
+  }
 
   return (
     <main className={`min-h-screen ${themeClasses.page}`}>
@@ -531,6 +644,38 @@ export default function Home() {
                       >
                         {iocLoadingById[item.id] ? "Extracting..." : "Extract IOCs"}
                       </button>
+                    ) : null}
+                    {iocById[item.id]?.hasIocSection ? (
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          onClick={() => handleDownloadCsv(item)}
+                          className={`inline-flex items-center rounded-lg border px-2 py-1 text-xs font-semibold transition ${themeClasses.inputBtn}`}
+                          title="Download IOCs as CSV"
+                        >
+                          CSV
+                        </button>
+                        <button
+                          onClick={() => handleDownloadJson(item)}
+                          className={`inline-flex items-center rounded-lg border px-2 py-1 text-xs font-semibold transition ${themeClasses.inputBtn}`}
+                          title="Download IOCs as JSON"
+                        >
+                          JSON
+                        </button>
+                        <button
+                          onClick={() => handleCopySplunkIpQuery(item)}
+                          className={`inline-flex items-center rounded-lg border px-2 py-1 text-xs font-semibold transition ${themeClasses.inputBtn}`}
+                          title="Copy Splunk IP query to clipboard"
+                        >
+                          {splunkCopiedById[item.id] ? "✓ Splunk" : "Splunk"}
+                        </button>
+                        <button
+                          onClick={() => handleCopyKibanaIpQuery(item)}
+                          className={`inline-flex items-center rounded-lg border px-2 py-1 text-xs font-semibold transition ${themeClasses.inputBtn}`}
+                          title="Copy Kibana IP query to clipboard"
+                        >
+                          {kibanaCopiedById[item.id] ? "✓ Kibana" : "Kibana"}
+                        </button>
+                      </div>
                     ) : null}
                   </div>
                 </div>

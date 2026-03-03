@@ -13,8 +13,6 @@ export type IocExtractionResult = {
 const IOC_SECTION_MARKERS = [
   "indicators of compromise",
   "indicator of compromise",
-  "iocs",
-  "ioc",
 ];
 
 const IOC_MAX_BYTES = 2 * 1024 * 1024;
@@ -59,13 +57,29 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+function findIocSectionInHtml(html: string): { label?: string; sectionHtml?: string } {
+  const headingRegex = /<h([1-6])[^>]*>\s*(?:<[^>]+>\s*)*(indicators?\s+of\s+compromise|iocs?)\s*(?:<[^>]+>\s*)*<\/h\1>/gi;
+  const headingMatch = headingRegex.exec(html);
+
+  if (!headingMatch || headingMatch.index < 0) return {};
+
+  const headingEnd = headingRegex.lastIndex;
+  const rest = html.slice(headingEnd);
+  const nextHeadingOffset = rest.search(/<h[1-6][^>]*>/i);
+  const sectionHtml = nextHeadingOffset === -1 ? rest : rest.slice(0, nextHeadingOffset);
+
+  return {
+    label: headingMatch[2]?.toLowerCase(),
+    sectionHtml,
+  };
+}
+
 function findIocSectionText(text: string): { label?: string; sectionText?: string } {
   const lower = text.toLowerCase();
 
   for (const marker of IOC_SECTION_MARKERS) {
     const idx = lower.indexOf(marker);
     if (idx !== -1) {
-      // Keep extraction strict to content explicitly near IOC section marker.
       const sectionText = text.slice(idx, idx + 30000);
       return { label: marker, sectionText };
     }
@@ -124,6 +138,17 @@ export async function extractIocsFromArticle(url: string): Promise<IocExtraction
   }
 
   const html = await readTextWithLimit(response, IOC_MAX_BYTES);
+
+  const htmlSection = findIocSectionInHtml(html);
+  if (htmlSection.sectionHtml) {
+    const sectionText = stripHtml(htmlSection.sectionHtml);
+    return {
+      hasIocSection: true,
+      sectionLabel: htmlSection.label,
+      iocs: extractIocsFromSection(sectionText),
+    };
+  }
+
   const text = stripHtml(html);
   const { label, sectionText } = findIocSectionText(text);
 
