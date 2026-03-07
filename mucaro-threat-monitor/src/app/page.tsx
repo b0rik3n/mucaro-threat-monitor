@@ -47,53 +47,100 @@ type CategoryOption =
 type RefreshOption = "off" | "10m" | "30m" | "60m";
 type ThemeOption = "dark" | "light" | "nord" | "high-contrast" | "matrix";
 type LayoutOption = "grid" | "dense";
+type LangOption = "en" | "es";
 
-const LOOKBACKS: { label: string; value: LookbackOption }[] = [
-  { label: "Last 1 hour", value: "1h" },
-  { label: "Last 6 hours", value: "6h" },
-  { label: "Last 12 hours", value: "12h" },
-  { label: "Last 24 hours", value: "24h" },
-  { label: "Last 3 days", value: "3d" },
-  { label: "Last 7 days", value: "7d" },
-  { label: "Last 30 days", value: "30d" },
+const LOOKBACKS: { value: LookbackOption; label: Record<LangOption, string> }[] = [
+  { value: "1h", label: { en: "Last 1 hour", es: "Última hora" } },
+  { value: "6h", label: { en: "Last 6 hours", es: "Últimas 6 horas" } },
+  { value: "12h", label: { en: "Last 12 hours", es: "Últimas 12 horas" } },
+  { value: "24h", label: { en: "Last 24 hours", es: "Últimas 24 horas" } },
+  { value: "3d", label: { en: "Last 3 days", es: "Últimos 3 días" } },
+  { value: "7d", label: { en: "Last 7 days", es: "Últimos 7 días" } },
+  { value: "30d", label: { en: "Last 30 days", es: "Últimos 30 días" } },
 ];
 
-const CATEGORY_OPTIONS: { label: string; value: CategoryOption }[] = [
-  { label: "All categories", value: "all" },
-  { label: "Vulnerabilities & CVEs", value: "vuln-cve" },
-  { label: "Ransomware", value: "ransomware" },
-  { label: "Threat Actors / APT", value: "apt" },
-  { label: "Data Breaches", value: "breach" },
-  { label: "Phishing & Social Engineering", value: "phishing" },
-  { label: "Malware", value: "malware" },
-  { label: "Cloud Security", value: "cloud" },
-  { label: "Identity & Access (IAM)", value: "iam" },
-  { label: "Zero-Day / Exploits", value: "zero-day" },
-  { label: "Defense / Detection Engineering", value: "detection" },
-  { label: "Regulatory & Compliance", value: "compliance" },
-  { label: "ICS/OT Security", value: "ics-ot" },
-  { label: "Reports with IOCs", value: "with-iocs" },
+const CATEGORY_OPTIONS: { value: CategoryOption; label: Record<LangOption, string> }[] = [
+  { value: "all", label: { en: "All categories", es: "Categorías" } },
+  { value: "vuln-cve", label: { en: "Vulnerabilities & CVEs", es: "Vulnerabilidades y CVEs" } },
+  { value: "ransomware", label: { en: "Ransomware", es: "Ransomware" } },
+  { value: "apt", label: { en: "Threat Actors / APT", es: "Actores de amenaza / APT" } },
+  { value: "breach", label: { en: "Data Breaches", es: "Filtraciones de datos" } },
+  { value: "phishing", label: { en: "Phishing & Social Engineering", es: "Phishing e ingeniería social" } },
+  { value: "malware", label: { en: "Malware", es: "Malware" } },
+  { value: "cloud", label: { en: "Cloud Security", es: "Seguridad en la nube" } },
+  { value: "iam", label: { en: "Identity & Access (IAM)", es: "Identidad y acceso (IAM)" } },
+  { value: "zero-day", label: { en: "Zero-Day / Exploits", es: "Zero-Day / Exploits" } },
+  { value: "detection", label: { en: "Defense / Detection Engineering", es: "Defensa / Ingeniería de detección" } },
+  { value: "compliance", label: { en: "Regulatory & Compliance", es: "Regulación y cumplimiento" } },
+  { value: "ics-ot", label: { en: "ICS/OT Security", es: "Seguridad ICS/OT" } },
+  { value: "with-iocs", label: { en: "Reports with IOCs", es: "Reportes con IOCs" } },
 ];
 
-const REFRESH_OPTIONS: { label: string; value: RefreshOption }[] = [
-  { label: "Off", value: "off" },
-  { label: "Every 10 minutes", value: "10m" },
-  { label: "Every 30 minutes", value: "30m" },
-  { label: "Every 60 minutes", value: "60m" },
+const REFRESH_OPTIONS: { value: RefreshOption; label: Record<LangOption, string> }[] = [
+  { value: "off", label: { en: "Off", es: "Desactivado" } },
+  { value: "10m", label: { en: "Every 10 minutes", es: "Cada 10 minutos" } },
+  { value: "30m", label: { en: "Every 30 minutes", es: "Cada 30 minutos" } },
+  { value: "60m", label: { en: "Every 60 minutes", es: "Cada 60 minutos" } },
 ];
 
-const THEME_OPTIONS: { label: string; value: ThemeOption }[] = [
-  { label: "SOC Dark", value: "dark" },
-  { label: "Nord Calm", value: "nord" },
-  { label: "High Contrast", value: "high-contrast" },
-  { label: "Light", value: "light" },
-  { label: "Matrix", value: "matrix" },
+const THEME_OPTIONS: { value: ThemeOption; label: Record<LangOption, string> }[] = [
+  { value: "dark", label: { en: "SOC Dark", es: "SOC oscuro" } },
+  { value: "nord", label: { en: "Nord Calm", es: "Nord calmado" } },
+  { value: "high-contrast", label: { en: "High Contrast", es: "Alto contraste" } },
+  { value: "light", label: { en: "Light", es: "Claro" } },
+  { value: "matrix", label: { en: "Matrix", es: "Matrix" } },
 ];
 
-const LAYOUT_OPTIONS: { label: string; value: LayoutOption }[] = [
-  { label: "Cards Grid", value: "grid" },
-  { label: "Dense Triage", value: "dense" },
+const LAYOUT_OPTIONS: { value: LayoutOption; label: Record<LangOption, string> }[] = [
+  { value: "grid", label: { en: "Cards Grid", es: "Cuadrícula" } },
+  { value: "dense", label: { en: "Dense Triage", es: "Vista compacta" } },
 ];
+
+const LANG_OPTIONS: { label: string; value: LangOption }[] = [
+  { label: "English", value: "en" },
+  { label: "Español", value: "es" },
+];
+
+const UI_TEXT: Record<LangOption, Record<string, string>> = {
+  en: {
+    subtitleSuffix: "cybersecurity intelligence",
+    lookback: "Lookback window",
+    category: "Category",
+    autoRefresh: "Auto-refresh",
+    language: "Language",
+    refreshNow: "Refresh now",
+    openSource: "Open Source",
+    extractIocs: "Extract IOCs",
+    extracting: "Extracting...",
+    warning: "IOCs are auto-extracted and may include false positives. Do not auto-block from this output. Validate each IOC against source context, telemetry, and intel confidence before taking action.",
+    splunk: "Splunk",
+    kibana: "Kibana",
+    esql: "ES|QL",
+    noResults: "No results found for this time window/category. Try expanding lookback or changing category.",
+    title: "Múcaro Threat Monitor",
+    theme: "Theme",
+    layout: "Layout",
+  },
+  es: {
+    subtitleSuffix: "inteligencia de ciberseguridad",
+    lookback: "Ventana de tiempo",
+    category: "Categoría",
+    autoRefresh: "Auto-actualización",
+    language: "Idioma",
+    refreshNow: "Actualizar",
+    openSource: "Abrir fuente",
+    extractIocs: "Extraer IOCs",
+    extracting: "Extrayendo...",
+    warning: "Los IOCs se extraen automáticamente y pueden incluir falsos positivos. No bloquees automáticamente con esta salida. Valida cada IOC con el contexto de la fuente, la telemetría y el nivel de confianza antes de tomar acción.",
+    splunk: "Splunk",
+    kibana: "Kibana",
+    esql: "ES|QL",
+    noResults: "No se encontraron resultados para esta ventana/categoría. Intenta ampliar el rango o cambiar la categoría.",
+    title: "Múcaro",
+    theme: "Tema",
+    layout: "Diseño",
+  },
+};
 
 const REFRESH_MS: Record<Exclude<RefreshOption, "off">, number> = {
   "10m": 600_000,
@@ -263,9 +310,11 @@ export default function Home() {
   const [autoRefresh, setAutoRefresh] = useState<RefreshOption>("off");
   const [theme, setTheme] = useState<ThemeOption>("dark");
   const [layout, setLayout] = useState<LayoutOption>("grid");
+  const [language, setLanguage] = useState<LangOption>("en");
   const [displayWidgetOpen, setDisplayWidgetOpen] = useState(false);
   const displayWidgetRef = useRef<HTMLDivElement | null>(null);
   const [items, setItems] = useState<NewsItem[]>([]);
+  const [thumbFailedById, setThumbFailedById] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -288,6 +337,7 @@ export default function Home() {
       const data = await res.json();
 
       setItems(data.items ?? []);
+      setThumbFailedById({});
       setLastUpdated(new Date().toISOString());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -331,6 +381,17 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("mucaro-layout", layout);
   }, [layout]);
+
+  useEffect(() => {
+    const savedLanguage = localStorage.getItem("mucaro-language") as LangOption | null;
+    if (savedLanguage && ["en", "es"].includes(savedLanguage)) {
+      setLanguage(savedLanguage);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("mucaro-language", language);
+  }, [language]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -434,10 +495,12 @@ export default function Home() {
     }[theme];
   }, [theme]);
 
+  const t = UI_TEXT[language];
+
   const headerText = useMemo(() => {
-    const selected = LOOKBACKS.find((l) => l.value === lookback)?.label ?? "Last 24 hours";
-    return `${selected} cybersecurity intelligence`;
-  }, [lookback]);
+    const selected = LOOKBACKS.find((l) => l.value === lookback)?.label[language] ?? "Last 24 hours";
+    return `${selected} ${t.subtitleSuffix}`;
+  }, [lookback, language, t.subtitleSuffix]);
 
   const filteredItems = useMemo(
     () => items.filter((item) => itemMatchesCategory(item, category)),
@@ -643,7 +706,7 @@ export default function Home() {
                 alt="Múcaro Threat Monitor logo"
                 className="h-8 w-8 rounded-md"
               />
-              <h1 className="text-3xl font-bold tracking-tight">Múcaro Threat Monitor</h1>
+              <h1 className="text-3xl font-bold tracking-tight">{t.title}</h1>
             </div>
             <p className={`mt-2 text-sm ${themeClasses.muted}`}>{headerText}</p>
             <p className={`mt-1 text-xs ${themeClasses.subtle}`}>
@@ -654,7 +717,7 @@ export default function Home() {
           <div className={`flex flex-col gap-3 rounded-xl border p-3 md:flex-row md:flex-wrap md:items-end ${themeClasses.panel}`}>
             <div>
               <label htmlFor="lookback" className={`mb-2 block text-xs uppercase tracking-wider ${themeClasses.submuted}`}>
-                Lookback window
+                {t.lookback}
               </label>
               <select
                 id="lookback"
@@ -664,7 +727,7 @@ export default function Home() {
               >
                 {LOOKBACKS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {option.label[language]}
                   </option>
                 ))}
               </select>
@@ -672,7 +735,7 @@ export default function Home() {
 
             <div>
               <label htmlFor="category" className={`mb-2 block text-xs uppercase tracking-wider ${themeClasses.submuted}`}>
-                Category
+                {t.category}
               </label>
               <select
                 id="category"
@@ -682,7 +745,7 @@ export default function Home() {
               >
                 {CATEGORY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {option.label[language]}
                   </option>
                 ))}
               </select>
@@ -690,7 +753,7 @@ export default function Home() {
 
             <div>
               <label htmlFor="autoRefresh" className={`mb-2 block text-xs uppercase tracking-wider ${themeClasses.submuted}`}>
-                Auto-refresh
+                {t.autoRefresh}
               </label>
               <select
                 id="autoRefresh"
@@ -700,7 +763,7 @@ export default function Home() {
               >
                 {REFRESH_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {option.label[language]}
                   </option>
                 ))}
               </select>
@@ -720,7 +783,7 @@ export default function Home() {
                         : "border-cyan-700 bg-cyan-900/30 text-cyan-200 hover:bg-cyan-800/40"
               }`}
             >
-              Refresh now
+              {t.refreshNow}
             </button>
           </div>
         </header>
@@ -731,7 +794,7 @@ export default function Home() {
           <p className="rounded-lg border border-red-700 bg-red-950/50 p-4 text-red-300">{error}</p>
         ) : filteredItems.length === 0 ? (
           <p className={`rounded-lg border p-4 ${themeClasses.panel} ${themeClasses.muted}`}>
-            No results found for this time window/category. Try expanding lookback or changing category.
+            {t.noResults}
           </p>
         ) : (
           <section
@@ -748,9 +811,16 @@ export default function Home() {
               >
                 <a href={item.link} target="_blank" rel="noreferrer" className="block">
                   <div className={`${layout === "dense" ? "aspect-[16/8]" : "aspect-video"} w-full bg-slate-800`}>
-                    {item.thumbnail ? (
+                    {item.thumbnail && !thumbFailedById[item.id] ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.thumbnail} alt={item.title} className="h-full w-full object-cover" />
+                      <img
+                        src={item.thumbnail}
+                        alt={item.title}
+                        className="h-full w-full object-cover"
+                        onError={() => {
+                          setThumbFailedById((prev) => ({ ...prev, [item.id]: true }));
+                        }}
+                      />
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center bg-gradient-to-br from-slate-800 via-slate-900 to-cyan-950 text-center">
                         {(() => {
@@ -795,14 +865,14 @@ export default function Home() {
                         rel="noreferrer"
                         className={`inline-flex items-center rounded-lg px-3 py-2 text-xs font-semibold transition ${themeClasses.accentBtn}`}
                       >
-                        Open Source
+                        {t.openSource}
                       </a>
                       {item.hasIocSectionHint ? (
                         <button
                           onClick={() => handleExtractIocs(item)}
                           className={`inline-flex items-center rounded-lg border px-3 py-2 text-xs font-semibold transition ${themeClasses.inputBtn}`}
                         >
-                          {iocLoadingById[item.id] ? "Extracting..." : "Extract IOCs"}
+                          {iocLoadingById[item.id] ? t.extracting : t.extractIocs}
                         </button>
                       ) : null}
                       {iocById[item.id]?.hasIocSection ? (
@@ -843,10 +913,10 @@ export default function Home() {
                     {iocById[item.id]?.hasIocSection ? (
                       <div className="space-y-2">
                         <p className="rounded-md border border-amber-500/50 bg-amber-950/30 px-2 py-1 text-[11px] text-amber-200">
-                          IOCs are auto-extracted and may include false positives. Do not auto-block from this output. Validate each IOC against source context, telemetry, and intel confidence before taking action.
+                          {t.warning}
                         </p>
                         <div className="space-y-1.5">
-                          <p className={`text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>Splunk</p>
+                          <p className={`text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>{t.splunk}</p>
                           <div className="flex flex-wrap gap-1.5">
                             {getIocTypeCounts(iocById[item.id] as IocResult).map((entry) => (
                               <button
@@ -863,7 +933,7 @@ export default function Home() {
                         </div>
 
                         <div className="space-y-1.5">
-                          <p className={`text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>Kibana</p>
+                          <p className={`text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>{t.kibana}</p>
                           <div className="flex flex-wrap gap-1.5">
                             {getIocTypeCounts(iocById[item.id] as IocResult).map((entry) => (
                               <button
@@ -880,7 +950,7 @@ export default function Home() {
                         </div>
 
                         <div className="space-y-1.5">
-                          <p className={`text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>ES|QL</p>
+                          <p className={`text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>{t.esql}</p>
                           <div className="flex flex-wrap gap-1.5">
                             {getIocTypeCounts(iocById[item.id] as IocResult).map((entry) => (
                               <button
@@ -915,7 +985,7 @@ export default function Home() {
 
             {displayWidgetOpen ? (
               <div className={`absolute right-0 top-11 w-64 rounded-xl border p-3 shadow-2xl backdrop-blur ${themeClasses.panel}`}>
-                <p className={`mb-2 text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>Theme</p>
+                <p className={`mb-2 text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>{t.theme}</p>
                 <div className="mb-3 flex flex-col gap-2">
                   {THEME_OPTIONS.map((option) => (
                     <button
@@ -925,13 +995,13 @@ export default function Home() {
                         theme === option.value ? themeClasses.accentBtn : themeClasses.inputBtn
                       }`}
                     >
-                      {option.label}
+                      {option.label[language]}
                     </button>
                   ))}
                 </div>
 
-                <p className={`mb-2 text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>Layout</p>
-                <div className="flex flex-col gap-2">
+                <p className={`mb-2 text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>{t.layout}</p>
+                <div className="mb-3 flex flex-col gap-2">
                   {LAYOUT_OPTIONS.map((option) => (
                     <button
                       key={option.value}
@@ -940,10 +1010,24 @@ export default function Home() {
                         layout === option.value ? themeClasses.accentBtn : themeClasses.inputBtn
                       }`}
                     >
-                      {option.label}
+                      {option.label[language]}
                     </button>
                   ))}
                 </div>
+
+                <p className={`mb-2 text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>{t.language}</p>
+                <select
+                  id="language"
+                  className={`w-full rounded-lg border px-2 py-2 text-xs outline-none ring-cyan-500 focus:ring-2 ${themeClasses.select}`}
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value as LangOption)}
+                >
+                  {LANG_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             ) : null}
           </div>
