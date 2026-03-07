@@ -92,6 +92,53 @@ function uniq(values: string[]): string[] {
   return [...new Set(values.map((v) => v.trim()).filter(Boolean))];
 }
 
+const NON_DOMAIN_TLDS = new Set([
+  "exe",
+  "dll",
+  "bin",
+  "so",
+  "msi",
+  "bat",
+  "cmd",
+  "ps1",
+  "vbs",
+  "js",
+  "jar",
+  "apk",
+  "dmg",
+  "pkg",
+  "zip",
+  "rar",
+  "7z",
+  "gz",
+  "tar",
+  "bz2",
+  "xz",
+  "iso",
+  "img",
+  "tmp",
+  "log",
+  "cfg",
+  "conf",
+  "ini",
+  "dat",
+  "json",
+  "xml",
+  "yml",
+  "yaml",
+]);
+
+function isLikelyDomain(value: string): boolean {
+  const lower = value.toLowerCase();
+  const parts = lower.split(".");
+  if (parts.length < 2) return false;
+
+  const tld = parts[parts.length - 1];
+  if (NON_DOMAIN_TLDS.has(tld)) return false;
+
+  return true;
+}
+
 function normalizeDefanged(text: string): string {
   return text
     .replace(/hxxps?:\/\//gi, (m) => m.toLowerCase().startsWith("hxxps") ? "https://" : "http://")
@@ -116,7 +163,7 @@ export function extractIocsFromSection(sectionText: string): IocExtractionResult
 
   const domains = uniq(
     normalized.match(/\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}\b/gi) ?? []
-  ).filter((d) => !d.includes("@"));
+  ).filter((d) => !d.includes("@") && isLikelyDomain(d));
 
   const hashes = uniq(
     sectionText.match(/\b(?:[A-Fa-f0-9]{32}|[A-Fa-f0-9]{40}|[A-Fa-f0-9]{64})\b/g) ?? []
