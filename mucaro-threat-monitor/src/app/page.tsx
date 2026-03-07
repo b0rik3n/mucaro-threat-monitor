@@ -161,7 +161,7 @@ function flattenIocs(result: IocResult): { type: string; value: string }[] {
 }
 
 type IocTypeKey = "ips" | "domains" | "urls" | "hashes" | "cves";
-type QueryPlatform = "splunk" | "kibana";
+type QueryPlatform = "splunk" | "kibana" | "esql";
 
 type QueryPreviewState = {
   itemId: string;
@@ -222,6 +222,31 @@ function buildKibanaIocQuery(type: IocTypeKey, values: string[]): string {
   return `vulnerability.id: (${quoted}) or cve: (${quoted})`;
 }
 
+function buildEsqlIocQuery(type: IocTypeKey, values: string[], source = "logs-*"): string {
+  const uniqueValues = [...new Set(values.map((v) => v.trim()).filter(Boolean))];
+  if (uniqueValues.length === 0) return "";
+
+  const list = uniqueValues.map((v) => `"${v.replace(/"/g, '\\"')}"`).join(", ");
+
+  if (type === "ips") {
+    return `FROM ${source}\n| WHERE source.ip IN (${list}) OR destination.ip IN (${list}) OR client.ip IN (${list}) OR server.ip IN (${list})\n| LIMIT 100`;
+  }
+
+  if (type === "domains") {
+    return `FROM ${source}\n| WHERE dns.question.name IN (${list}) OR url.domain IN (${list}) OR destination.domain IN (${list})\n| LIMIT 100`;
+  }
+
+  if (type === "urls") {
+    return `FROM ${source}\n| WHERE url.full IN (${list}) OR http.request.referrer IN (${list}) OR event.original IN (${list})\n| LIMIT 100`;
+  }
+
+  if (type === "hashes") {
+    return `FROM ${source}\n| WHERE file.hash.md5 IN (${list}) OR file.hash.sha1 IN (${list}) OR file.hash.sha256 IN (${list}) OR hash IN (${list})\n| LIMIT 100`;
+  }
+
+  return `FROM ${source}\n| WHERE vulnerability.id IN (${list}) OR cve IN (${list})\n| LIMIT 100`;
+}
+
 function getIocTypeCounts(result: IocResult): { key: IocTypeKey; label: string; count: number }[] {
   return [
     { key: "ips", label: "IPs", count: result.iocs.ips.length },
@@ -249,6 +274,7 @@ export default function Home() {
   const [iocStatusById, setIocStatusById] = useState<Record<string, { tone: "ok" | "warn" | "error"; text: string } | undefined>>({});
   const [splunkCopiedById, setSplunkCopiedById] = useState<Record<string, IocTypeKey | undefined>>({});
   const [kibanaCopiedById, setKibanaCopiedById] = useState<Record<string, IocTypeKey | undefined>>({});
+  const [esqlCopiedById, setEsqlCopiedById] = useState<Record<string, IocTypeKey | undefined>>({});
   const [queryPreview, setQueryPreview] = useState<QueryPreviewState | null>(null);
 
   const loadNews = useCallback(async (silent = false) => {
@@ -539,11 +565,13 @@ export default function Home() {
     const values = result.iocs[type];
     if (!values.length) return;
 
-    const indexName = "<your_index>";
+    const indexName = platform === "splunk" ? "<your_index>" : "logs-*";
     const query =
       platform === "splunk"
         ? buildSplunkIocQuery(type, values, indexName)
-        : buildKibanaIocQuery(type, values);
+        : platform === "kibana"
+          ? buildKibanaIocQuery(type, values)
+          : buildEsqlIocQuery(type, values, indexName);
 
     setQueryPreview({
       itemId: item.id,
@@ -555,11 +583,15 @@ export default function Home() {
   }
 
   function handlePreviewIndexChange(indexName: string) {
-    if (!queryPreview || queryPreview.platform !== "splunk") return;
+    if (!queryPreview || (queryPreview.platform !== "splunk" && queryPreview.platform !== "esql")) return;
     const result = iocById[queryPreview.itemId];
     if (!result?.hasIocSection) return;
 
-    const nextQuery = buildSplunkIocQuery(queryPreview.type, result.iocs[queryPreview.type], indexName);
+    const nextQuery =
+      queryPreview.platform === "splunk"
+        ? buildSplunkIocQuery(queryPreview.type, result.iocs[queryPreview.type], indexName)
+        : buildEsqlIocQuery(queryPreview.type, result.iocs[queryPreview.type], indexName);
+
     setQueryPreview((prev) => (prev ? { ...prev, indexName, query: nextQuery } : prev));
   }
 
@@ -577,10 +609,15 @@ export default function Home() {
         window.setTimeout(() => {
           setSplunkCopiedById((prev) => ({ ...prev, [queryPreview.itemId]: undefined }));
         }, 1800);
-      } else {
+      } else if (queryPreview.platform === "kibana") {
         setKibanaCopiedById((prev) => ({ ...prev, [queryPreview.itemId]: queryPreview.type }));
         window.setTimeout(() => {
           setKibanaCopiedById((prev) => ({ ...prev, [queryPreview.itemId]: undefined }));
+        }, 1800);
+      } else {
+        setEsqlCopiedById((prev) => ({ ...prev, [queryPreview.itemId]: queryPreview.type }));
+        window.setTimeout(() => {
+          setEsqlCopiedById((prev) => ({ ...prev, [queryPreview.itemId]: undefined }));
         }, 1800);
       }
     } catch {
@@ -838,6 +875,23 @@ export default function Home() {
                             ))}
                           </div>
                         </div>
+
+                        <div className="space-y-1.5">
+                          <p className={`text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>ES|QL</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {getIocTypeCounts(iocById[item.id] as IocResult).map((entry) => (
+                              <button
+                                key={`esql-${entry.key}`}
+                                onClick={() => openQueryPreview(item, "esql", entry.key)}
+                                disabled={entry.count === 0}
+                                className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] font-semibold transition ${themeClasses.inputBtn} ${entry.count === 0 ? "cursor-not-allowed opacity-40" : ""}`}
+                                title={entry.count > 0 ? `Copy ES|QL query for ${entry.label}` : `No ${entry.label.toLowerCase()} extracted`}
+                              >
+                                {esqlCopiedById[item.id] === entry.key ? `✓ ${entry.label}: ${entry.count}` : `${entry.label}: ${entry.count}`}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -897,7 +951,7 @@ export default function Home() {
             <div className={`w-full max-w-2xl rounded-xl border p-4 shadow-2xl ${themeClasses.panel}`}>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <h3 className="text-sm font-semibold">
-                  {queryPreview.platform === "splunk" ? "Splunk" : "Kibana"} query preview · {queryPreview.type.toUpperCase()}
+                  {queryPreview.platform === "splunk" ? "Splunk" : queryPreview.platform === "kibana" ? "Kibana" : "ES|QL"} query preview · {queryPreview.type.toUpperCase()}
                 </h3>
                 <button
                   onClick={() => setQueryPreview(null)}
@@ -907,10 +961,10 @@ export default function Home() {
                 </button>
               </div>
 
-              {queryPreview.platform === "splunk" ? (
+              {queryPreview.platform === "splunk" || queryPreview.platform === "esql" ? (
                 <div className="mb-3">
                   <label className={`mb-1 block text-xs uppercase tracking-wider ${themeClasses.submuted}`}>
-                    Splunk index
+                    {queryPreview.platform === "splunk" ? "Splunk index" : "ES|QL source"}
                   </label>
                   <input
                     value={queryPreview.indexName}
