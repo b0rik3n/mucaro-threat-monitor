@@ -842,6 +842,9 @@ export default function Home() {
 
                     {iocById[item.id]?.hasIocSection ? (
                       <div className="space-y-2">
+                        <p className="rounded-md border border-amber-500/50 bg-amber-950/30 px-2 py-1 text-[11px] text-amber-200">
+                          IOCs are auto-extracted and may include false positives. Do not auto-block from this output. Validate each IOC against source context, telemetry, and intel confidence before taking action.
+                        </p>
                         <div className="space-y-1.5">
                           <p className={`text-[11px] uppercase tracking-wider ${themeClasses.submuted}`}>Splunk</p>
                           <div className="flex flex-wrap gap-1.5">
